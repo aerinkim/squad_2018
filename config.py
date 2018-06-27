@@ -143,6 +143,8 @@ def train_config(parser):
     parser.add_argument('--dropout_emb', type=float, default=0.4)
     parser.add_argument('--dropout_w', type=float, default=0.05)
     parser.add_argument('--unk_id', type=int, default=1)
+    parser.add_argument('--na_prob_thresh', '-t', type=float, default=1.0,
+                        help='Predict "" if no-answer probability exceeds this (default = 1.0).')
 
     # scheduler
     parser.add_argument('--no_lr_scheduler', dest='have_lr_scheduler', action='store_false')

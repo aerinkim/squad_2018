@@ -275,3 +275,34 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt 
   main()
 
+
+def evaluate_file_v2(data_path, predictions):
+    expected_version = 'v2.0'
+    with open(data_path) as dataset_file:
+        dataset_json = json.load(dataset_file)
+        if (dataset_json['version'] != expected_version):
+            print('Evaluation expects v-' + expected_version +
+                  ', but got dataset with v-' + dataset_json['version'],
+                  file=sys.stderr)
+        dataset = dataset_json['data']
+        return evaluate(dataset, predictions)
+
+
+def evaluate(dataset, preds):
+    na_probs = {k: 0.0 for k in preds}
+    qid_to_has_ans = make_qid_to_has_ans(dataset)  # maps qid to True/False
+    has_ans_qids = [k for k, v in qid_to_has_ans.items() if v]
+    no_ans_qids = [k for k, v in qid_to_has_ans.items() if not v]
+    exact_raw, f1_raw = get_raw_scores(dataset, preds)
+    exact_thresh = apply_no_ans_threshold(exact_raw, na_probs, qid_to_has_ans, OPTS.na_prob_thresh)
+    f1_thresh = apply_no_ans_threshold(f1_raw, na_probs, qid_to_has_ans, OPTS.na_prob_thresh)
+    out_eval = make_eval_dict(exact_thresh, f1_thresh)
+    if has_ans_qids:
+        has_ans_eval = make_eval_dict(exact_thresh, f1_thresh, qid_list=has_ans_qids)
+        merge_eval(out_eval, has_ans_eval, 'HasAns')
+    if no_ans_qids:
+        no_ans_eval = make_eval_dict(exact_thresh, f1_thresh, qid_list=no_ans_qids)
+        merge_eval(out_eval, no_ans_eval, 'NoAns')
+    if OPTS.na_prob_file:
+        find_all_best_thresh(out_eval, preds, exact_raw, f1_raw, na_probs, qid_to_has_ans)
+    return {'exact_match': out_eval['best_exact'], 'f1': out_eval['best_f1']}

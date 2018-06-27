@@ -19,6 +19,7 @@ from config import set_args
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from my_utils.squad_eval import evaluate_file
+from my_utils.squad_eval_v2 import evaluate_file_v2
 
 args = set_args()
 # set model dir
@@ -40,7 +41,10 @@ def check(model, data, gold_path):
         for uid, pred in zip(uids, phrase):
             predictions[uid] = pred
 
-    results = evaluate_file(gold_path, predictions, args.expect_version)
+    if args.expect_version == 'v2.0':
+        results = evaluate_file_v2(gold_path, predictions, args.na_prob_thresh)
+    else:
+        results = evaluate_file(gold_path, predictions)
     return results['exact_match'], results['f1'], predictions
 
 def main():
