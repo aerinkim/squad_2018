@@ -40,7 +40,7 @@ def check(model, data, gold_path):
         for uid, pred in zip(uids, phrase):
             predictions[uid] = pred
 
-    results = evaluate_file(gold_path, predictions)
+    results = evaluate_file(gold_path, predictions, args.expect_version)
     return results['exact_match'], results['f1'], predictions
 
 def main():
@@ -52,7 +52,7 @@ def main():
                           batch_size=args.batch_size,
                           gpu=args.cuda)
     dev_data = BatchGen(os.path.join(args.data_dir, args.dev_data),
-                          batch_size=args.batch_size,
+                          batch_size=args.batch_size_eval,
                           gpu=args.cuda, is_train=False)
     logger.info('#' * 20)
     logger.info(opt)

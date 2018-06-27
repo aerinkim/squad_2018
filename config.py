@@ -108,8 +108,8 @@ def data_config(parser):
                         help='path to preprocessed training data file.')
     parser.add_argument('--dev_data', default='dev_data.json',
                         help='path to preprocessed validation data file.')
-    parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
-    # parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
+    # parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
+    parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='data/MT-LSTM.pt')
     parser.add_argument('--glove', default='data/glove.840B.300d.txt',
@@ -129,6 +129,8 @@ def train_config(parser):
     parser.add_argument('--log_per_updates', type=int, default=50)
     parser.add_argument('--epoches', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--batch_size_eval', type=int, default=30)
+    parser.add_argument('--expect_version', default='v2.0')
     parser.add_argument('--resume')
     parser.add_argument('--optimizer', default='adamax',
                         help='supported optimizer: adamax, sgd, adadelta, adam')

@@ -49,12 +49,11 @@ def metric_max_over_ground_truths(metric_fn, prediction, ground_truths):
         scores_for_ground_truths.append(score)
     return max(scores_for_ground_truths)
 
-def evaluate_file(data_path, predictions):
-    expected_version = '1.1'
+def evaluate_file(data_path, predictions, expect_version):
     with open(data_path) as dataset_file:
         dataset_json = json.load(dataset_file)
-        if (dataset_json['version'] != expected_version):
-            print('Evaluation expects v-' + expected_version +
+        if (dataset_json['version'] != expect_version):
+            print('Evaluation expects v-' + expect_version +
                   ', but got dataset with v-' + dataset_json['version'],
                   file=sys.stderr)
         dataset = dataset_json['data']
@@ -72,11 +71,12 @@ def evaluate(dataset, predictions):
                     print(message, file=sys.stderr)
                     continue
                 ground_truths = list(map(lambda x: x['text'], qa['answers']))
-                prediction = predictions[qa['id']]
-                exact_match += metric_max_over_ground_truths(
-                    exact_match_score, prediction, ground_truths)
-                f1 += metric_max_over_ground_truths(
-                    f1_score, prediction, ground_truths)
+                if len(ground_truths) > 0:
+                    prediction = predictions[qa['id']]
+                    exact_match += metric_max_over_ground_truths(
+                        exact_match_score, prediction, ground_truths)
+                    f1 += metric_max_over_ground_truths(
+                        f1_score, prediction, ground_truths)
 
     exact_match = 100.0 * exact_match / total
     f1 = 100.0 * f1 / total
