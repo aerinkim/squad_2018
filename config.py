@@ -149,8 +149,8 @@ def train_config(parser):
     parser.add_argument('--multi_step_lr', type=str, default='10,20,30')
     parser.add_argument('--lr_gamma', type=float, default=0.5)
     parser.add_argument('--scheduler_type', type=str, default='ms', help='ms/rop/exp')
-    parser.add_argument('--fix_embeddings', action='store_true', help='if true, `tune_partial` will be ignored.')
-    parser.add_argument('--tune_partial', type=int, default=1000, help='finetune top-x embeddings (including <PAD>, <UNK>).')
+    parser.add_argument('--fix_embeddings', action='store_true', help='if true, `tune_partial` will be ignored. This will remove the gradient to the embedding layer completely.')
+    parser.add_argument('--tune_partial', type=int, default=1000, help='finetune top-x embeddings (including <PAD>, <UNK>). This will remove the gradient to all embeddings but the x most frequent words.')
     parser.add_argument('--model_dir', default='checkpoint')
     parser.add_argument('--seed', type=int, default=2013,
                         help='random seed for data shuffling, embedding init, etc.')
