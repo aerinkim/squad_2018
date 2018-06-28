@@ -92,17 +92,19 @@ def load_data(path, is_train=True):
     for article in tqdm.tqdm(data, total=len(data)):
         for paragraph in article['paragraphs']:
             context = paragraph['context']
+
             for qa in paragraph['qas']:
-                uid, question = qa['id'], qa['question']
+
+                uid, question, is_impossible = qa['id'], qa['question'], qa['is_impossible']
                 answers = qa.get('answers', [])
                 if is_train:
                     if len(answers) < 1: continue
                     answer = answers[0]['text']
                     answer_start = answers[0]['answer_start']
                     answer_end = answer_start + len(answer)
-                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end}
+                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end': answer_end, 'is_impossible': is_impossible}
                 else:
-                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answers, 'answer_start': -1, 'answer_end':-1}
+                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answers, 'answer_start': -1, 'answer_end':-1, 'is_impossible':is_impossible}
                 rows.append(sample)
     return rows
 
