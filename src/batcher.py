@@ -89,7 +89,8 @@ class BatchGen:
                 select_len = min(len(sample['query_tok']), query_len)
                 query_id[i, :len(sample['query_tok'])] = torch.LongTensor(sample['query_tok'][:select_len])
 
-            doc_mask = torch.eq(doc_id, 0)
+            # doc_mask / query_mask has the same shape as doc_id / query_id
+            doc_mask = torch.eq(doc_id, 0) 
             query_mask = torch.eq(query_id, 0)
             
             batch_dict['doc_tok'] = doc_id
