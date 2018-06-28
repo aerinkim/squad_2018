@@ -155,6 +155,7 @@ def build_span(context, answer, context_token, answer_start, answer_end, is_trai
     else:
         return (t_start, t_end, t_span)
 
+
 def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
     def feature_func(sample):
         query_tokend = NLP(reform_text(sample['question']))
@@ -165,6 +166,7 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict = {}
         fea_dict['uid'] = sample['uid']
         fea_dict['context'] = sample['context']
+        fea_dict['is_impossible'] = sample['is_impossible']
         fea_dict['query_tok'] = tok_func(query_tokend, vocab)
         fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
         fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
@@ -194,6 +196,7 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
     with open(fout, 'w', encoding='utf-8') as writer:
         writer.write("\n".join(res_list))
     logger.info('dropped {} in total {}'.format(dropped_sample, len(data)))
+
 
 def main():
     args = set_args()
@@ -226,6 +229,7 @@ def main():
     meta = {'vocab': vocab, 'vocab_tag': vocab_tag, 'vocab_ner': vocab_ner, 'embedding': embedding}
     with open(meta_path, 'wb') as f:
         pickle.dump(meta, f)
+    logger.info('started the function build_data')
     train_fout = os.path.join(args.data_dir, args.train_data)
     build_data(train_data, vocab, vocab_tag, vocab_ner, train_fout, True, thread=args.threads)
     dev_fout = os.path.join(args.data_dir, args.dev_data)
