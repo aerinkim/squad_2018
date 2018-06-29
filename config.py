@@ -108,7 +108,7 @@ def data_config(parser):
                         help='path to preprocessed training data file.')
     parser.add_argument('--dev_data', default='dev_data_v1.json',
                         help='path to preprocessed validation data file.')
-    parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
+    parser.add_argument('--dev_gold', default='dev-v1.1.json',
     #parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
