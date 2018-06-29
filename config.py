@@ -109,9 +109,9 @@ def data_config(parser):
     parser.add_argument('--dev_data', default='dev_data.json',
                         help='path to preprocessed validation data file.')
     # parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
-    parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
+    parser.add_argument('--dev_gold', default='dev-v2.0.json',
                         help='path to preprocessed validation data file.')
-    parser.add_argument('--covec_path', default='data/MT-LSTM.pt')
+    parser.add_argument('--covec_path', default='MT-LSTM.pt')
     parser.add_argument('--glove', default='data/glove.840B.300d.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
