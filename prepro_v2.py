@@ -19,7 +19,7 @@ from my_utils.tokenizer import Vocabulary, reform_text
 from my_utils.word2vec_utils import load_glove_vocab, build_embedding
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
-from config import set_args
+from config_v2 import set_args
 
 """
 This script is to preproces SQuAD dataset.
@@ -197,9 +197,9 @@ def main():
     args = set_args()
     global logger
     logger = create_logger(__name__, to_disk=True, log_file=args.log_file)
-    logger.info('~Processing SQuAD dataset~')
-    train_path = os.path.join(args.data_dir, 'train-v1.1.json')
-    valid_path = os.path.join(args.data_dir, 'dev-v1.1.json')
+    logger.info('~Processing SQuAD V2 dataset~')
+    train_path = os.path.join(args.data_dir, 'train-v2.0.json')
+    valid_path = os.path.join(args.data_dir, 'dev-v2.0.json')
     logger.info('The path of training data: {}'.format(train_path))
     logger.info('The path of validation data: {}'.format(valid_path))
     logger.info('{}-dim word vector path: {}'.format(args.glove_dim, args.glove))

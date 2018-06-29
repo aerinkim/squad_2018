@@ -24,10 +24,10 @@ def model_config(parser):
     parser.add_argument('--prealign_on', action='store_false')
     parser.add_argument('--prealign_head', type=int, default=1)
     parser.add_argument('--prealign_att_dropout', type=float, default=0)
-    parser.add_argument('--prealign_norm_on', action='store_false')
+    parser.add_argument('--prealign_norm_on', action='store_true')
     parser.add_argument('--prealign_proj_on', action='store_true')
-    parser.add_argument('--prealign_bidi', action='store_false')
-    parser.add_argument('--prealign_hidden_size', type=int, default=125)
+    parser.add_argument('--prealign_bidi', action='store_true')
+    parser.add_argument('--prealign_hidden_size', type=int, default=128)
     parser.add_argument('--prealign_share', action='store_false')
     parser.add_argument('--prealign_residual_on', action='store_true')
     parser.add_argument('--prealign_scale_on', action='store_false')
@@ -35,10 +35,10 @@ def model_config(parser):
     parser.add_argument('--prealign_activation', type=str, default='relu')
 
     parser.add_argument('--pwnn_on', action='store_false')
-    parser.add_argument('--pwnn_hidden_size', type=int, default=125)
+    parser.add_argument('--pwnn_hidden_size', type=int, default=128)
 
     ##contextual encoding
-    parser.add_argument('--contextual_hidden_size', type=int, default=125)
+    parser.add_argument('--contextual_hidden_size', type=int, default=128)
     parser.add_argument('--contextual_cell_type', type=str, default='lstm')
     parser.add_argument('--contextual_weight_norm_on', action='store_true')
     parser.add_argument('--contextual_maxout_on', action='store_true')
@@ -47,9 +47,9 @@ def model_config(parser):
     parser.add_argument('--contextual_num_layers', type=int, default=2)
 
     ## mem setting
-    parser.add_argument('--msum_hidden_size', type=int, default=125)
+    parser.add_argument('--msum_hidden_size', type=int, default=128)
     parser.add_argument('--msum_cell_type', type=str, default='lstm')
-    parser.add_argument('--msum_weight_norm_on', action='store_false')
+    parser.add_argument('--msum_weight_norm_on', action='store_true')
     parser.add_argument('--msum_maxout_on', action='store_true')
     parser.add_argument('--msum_residual_on', action='store_true')
     parser.add_argument('--msum_lexicon_input_on', action='store_true')
@@ -57,7 +57,7 @@ def model_config(parser):
 
     # attention
     parser.add_argument('--deep_att_lexicon_input_on', action='store_false')
-    parser.add_argument('--deep_att_hidden_size', type=int, default=250)
+    parser.add_argument('--deep_att_hidden_size', type=int, default=128)
     parser.add_argument('--deep_att_sim_func', type=str, default='dotproductproject')
     parser.add_argument('--deep_att_activation', type=str, default='relu')
     parser.add_argument('--deep_att_norm_on', action='store_false')
@@ -68,10 +68,10 @@ def model_config(parser):
 
     # self attn
     parser.add_argument('--self_attention_on', action='store_false')
-    parser.add_argument('--self_att_hidden_size', type=int, default=75)
+    parser.add_argument('--self_att_hidden_size', type=int, default=128)
     parser.add_argument('--self_att_sim_func', type=str, default='dotproductproject')
     parser.add_argument('--self_att_activation', type=str, default='relu')
-    parser.add_argument('--self_att_norm_on', action='store_false')
+    parser.add_argument('--self_att_norm_on', action='store_true')
     parser.add_argument('--self_att_proj_on', action='store_true')
     parser.add_argument('--self_att_residual_on', action='store_true')
     parser.add_argument('--self_att_dropout', type=float, default=0.1)
@@ -81,35 +81,35 @@ def model_config(parser):
     # query summary
     parser.add_argument('--query_sum_att_type', type=str, default='linear',
                         help='linear/mlp')
-    parser.add_argument('--query_sum_norm_on', action='store_false')
+    parser.add_argument('--query_sum_norm_on', action='store_true')
 
-    parser.add_argument('--san_on', action='store_false')
+    parser.add_argument('--san_on', action='store_true')
     parser.add_argument('--max_len', type=int, default=5)
     parser.add_argument('--decoder_ptr_update_on', action='store_true')
     parser.add_argument('--decoder_num_turn', type=int, default=5)
-    parser.add_argument('--decoder_mem_type', type=int, default=1)
+    parser.add_argument('--decoder_mem_type', type=int, default=3)
     parser.add_argument('--decoder_mem_drop_p', type=float, default=0.4)
     parser.add_argument('--decoder_opt', type=int, default=0)
-    parser.add_argument('--decoder_att_hidden_size', type=int, default=125)
+    parser.add_argument('--decoder_att_hidden_size', type=int, default=128)
     parser.add_argument('--decoder_att_type', type=str, default='bilinear',
                         help='bilinear/simple/defualt')
     parser.add_argument('--decoder_rnn_type', type=str, default='gru',
                         help='rnn/gru/lstm')
     parser.add_argument('--decoder_sum_att_type', type=str, default='bilinear',
                         help='bilinear/simple/defualt')
-    parser.add_argument('--decoder_weight_norm_on', action='store_false')
+    parser.add_argument('--decoder_weight_norm_on', action='store_true')
     return parser
 
 def data_config(parser):
     parser.add_argument('--log_file', default='san.log', help='path for log file.')
     parser.add_argument('--data_dir', default='data/')
     parser.add_argument('--meta', default='squad_meta.pick', help='path to preprocessed meta file.')
-    parser.add_argument('--train_data', default='train_data_v1.json',
+    parser.add_argument('--train_data', default='train_data.json',
                         help='path to preprocessed training data file.')
-    parser.add_argument('--dev_data', default='dev_data_v1.json',
+    parser.add_argument('--dev_data', default='dev_data.json',
                         help='path to preprocessed validation data file.')
-    parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
-    #parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
+    # parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
+    parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='data/MT-LSTM.pt')
     parser.add_argument('--glove', default='data/glove.840B.300d.txt',
@@ -124,13 +124,13 @@ def data_config(parser):
     return parser
 
 def train_config(parser):
-    parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available(),
+    parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available(), 
                         help='whether to use GPU acceleration.')
     parser.add_argument('--log_per_updates', type=int, default=50)
     parser.add_argument('--epoches', type=int, default=40)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--batch_size_eval', type=int, default=30)
-    parser.add_argument('--expect_version', default='v1.0')
+    parser.add_argument('--expect_version', default='v2.0')
     parser.add_argument('--resume')
     parser.add_argument('--optimizer', default='adamax',
                         help='supported optimizer: adamax, sgd, adadelta, adam')
