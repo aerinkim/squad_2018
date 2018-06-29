@@ -97,7 +97,7 @@ class Bilinear(nn.Module):
 
         proj = self.proj(y) if self.transform_on else y
         if self.dropout:
-            proj = self.dropou(proj)
+            proj = self.dropout(proj)
         scores = x.bmm(proj.unsqueeze(2)).squeeze(2)
         return scores
 

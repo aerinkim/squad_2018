@@ -82,7 +82,7 @@ def main():
                     model.updates, model.train_loss.avg,
                     str((datetime.now() - start) / (i + 1) * (len(train_data) - i - 1)).split('.')[0]))
         # dev eval
-        em, f1, results = check(model, dev_data, args.dev_gold)
+        em, f1, results = check(model, dev_data, os.path.join(args.data_dir, args.dev_gold))
         output_path = os.path.join(model_dir, 'dev_output_{}.json'.format(epoch))
         with open(output_path, 'w') as f:
             json.dump(results, f)
@@ -98,7 +98,7 @@ def main():
         model_file = os.path.join(model_dir, 'checkpoint_epoch_{}.pt'.format(epoch))
         model.save(model_file, epoch)
         if em + f1 > best_em_score + best_f1_score:
-            copyfile(os.path.join(model_dir, model_file), os.path.join(model_dir, 'best_checkpoint.pt'))
+            copyfile(model_file, os.path.join(model_dir, 'best_checkpoint.pt'))
             best_em_score, best_f1_score = em, f1
             logger.info('Saved the new best model and prediction')
         logger.warning("Epoch {0} - dev EM: {1:.3f} F1: {2:.3f} (best EM: {3:.3f} F1: {4:.3f})".format(epoch, em, f1, best_em_score, best_f1_score))

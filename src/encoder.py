@@ -1,3 +1,4 @@
+import os
 import torch
 import math
 import torch.nn as nn
@@ -45,7 +46,7 @@ class LexiconEncoder(nn.Module):
         return embed_dim
 
     def create_cove(self, vocab_size, embedding=None, embed_dim=300, padding_idx=0, opt=None):
-        self.ContextualEmbed= ContextualEmbed(opt['covec_path'], opt['vocab_size'], embedding=embedding, padding_idx=padding_idx)
+        self.ContextualEmbed= ContextualEmbed(os.path.join(opt['data_dir'], opt['covec_path']), opt['vocab_size'], embedding=embedding, padding_idx=padding_idx)
         return self.ContextualEmbed.output_size
 
     def create_prealign(self, x1_dim, x2_dim, opt={}, prefix='prealign'):
