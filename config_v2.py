@@ -8,7 +8,7 @@ Configuration file
 def model_config(parser):
     parser.add_argument('--vocab_size', type=int, default=0)
     parser.add_argument('--wemb_dim', type=int, default=300)
-    parser.add_argument('--covec_on', action='store_false')
+    parser.add_argument('--covec_on', action='store_false', help = "pre-trained 600-dimensional CoVe vectors (McCann et al., 2017)")
     parser.add_argument('--embedding_dim', type=int, default=300)
 
     # pos
@@ -20,8 +20,11 @@ def model_config(parser):
     parser.add_argument('--ner_dim', type=int, default=8)
     parser.add_argument('--no_feat', dest='feat_on', action='store_false')
     parser.add_argument('--num_features', type=int, default=4)
-    # q->p
-    parser.add_argument('--prealign_on', action='store_false')
+    
+    # q -> p (Word embedding of the passage. Enhanced by questions.)
+    # We measure the similarity in word embedding space between a token in passage
+    # and a token in the question using the dot product.
+    parser.add_argument('--prealign_on', action='store_false', help = "we enhance the word embedding of the passage by using questions.")
     parser.add_argument('--prealign_head', type=int, default=1)
     parser.add_argument('--prealign_att_dropout', type=float, default=0)
     parser.add_argument('--prealign_norm_on', action='store_true')

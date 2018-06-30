@@ -221,8 +221,11 @@ def main():
     logger.info('building embedding')
     embedding = build_embedding(glove_path, vocab, glove_dim)
     meta = {'vocab': vocab, 'vocab_tag': vocab_tag, 'vocab_ner': vocab_ner, 'embedding': embedding}
+    
+    # If you want to check vocab token IDs, etc., load the meta file below (squad_meta.pick).
     with open(meta_path, 'wb') as f:
         pickle.dump(meta, f)
+   
     train_fout = os.path.join(args.data_dir, args.train_data)
     build_data(train_data, vocab, vocab_tag, vocab_ner, train_fout, True, thread=args.threads)
     dev_fout = os.path.join(args.data_dir, args.dev_data)
