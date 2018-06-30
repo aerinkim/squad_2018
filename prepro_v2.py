@@ -20,6 +20,7 @@ from my_utils.word2vec_utils import load_glove_vocab, build_embedding
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from config_v2 import set_args
+from allennlp.modules.elmo import Elmo, batch_to_ids
 
 """
 This script is to preproces SQuAD dataset.
@@ -117,6 +118,9 @@ def nertag_func(toks, vocab):
 def tok_func(toks, vocab):
     return [vocab[w.text] for w in toks if len(w.text) > 0]
 
+def char_ids_func(toks):
+    return batch_to_ids([ w.text for w in toks if len(w.text) > 0])
+
 def match_func(question, context):
     counter = Counter(w.text.lower() for w in context)
     total = sum(counter.values())
@@ -164,9 +168,11 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict['uid'] = sample['uid']
         fea_dict['context'] = sample['context']
         fea_dict['query_tok'] = tok_func(query_tokend, vocab)
+        fea_dict['query_char_ids'] = char_ids_func(query_tokend)
         fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
         fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
         fea_dict['doc_tok'] = tok_func(doc_tokend, vocab)
+        fea_dict['doc_char_ids'] = char_ids_func(doc_tokend)
         fea_dict['doc_pos'] = postag_func(doc_tokend, vocab_tag)
         fea_dict['doc_ner'] = nertag_func(doc_tokend, vocab_ner)
         fea_dict['doc_fea'] = '{}'.format(match_func(query_tokend, doc_tokend))  # json don't support float
@@ -193,9 +199,38 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         writer.write("\n".join(res_list))
     logger.info('dropped {} in total {}'.format(dropped_sample, len(data)))
 
+def build_spacy_vocab():
+    nlp = spacy.load('en', parser=False)
+    ner_dict = {
+    'PERSON':       'People, including fictional',
+    'NORP':         'Nationalities or religious or political groups',
+    'FACILITY':     'Buildings, airports, highways, bridges, etc.',
+    'ORG':          'Companies, agencies, institutions, etc.',
+    'GPE':          'Countries, cities, states',
+    'LOC':          'Non-GPE locations, mountain ranges, bodies of water',
+    'PRODUCT':      'Objects, vehicles, foods, etc. (not services)',
+    'EVENT':        'Named hurricanes, battles, wars, sports events, etc.',
+    'WORK_OF_ART':  'Titles of books, songs, etc.',
+    'LAW':          'Named documents made into laws.',
+    'LANGUAGE':     'Any named language',
+    'DATE':         'Absolute or relative dates or periods',
+    'TIME':         'Times smaller than a day',
+    'PERCENT':      'Percentage, including "%"',
+    'MONEY':        'Monetary values, including unit',
+    'QUANTITY':     'Measurements, as of weight or distance',
+    'ORDINAL':      '"first", "second", etc.',
+    'CARDINAL':     'Numerals that do not fall under another type',
+    }
+
+    vocab_tag = Vocabulary.build(nlp.tagger.labels, neat=True)
+    vocab_ner = Vocabulary.build(ner_dict.keys(), neat=True)
+
+    return vocab_tag, vocab_ner
+
 def main():
     args = set_args()
     global logger
+
     logger = create_logger(__name__, to_disk=True, log_file=args.log_file)
     logger.info('~Processing SQuAD V2 dataset~')
     train_path = os.path.join(args.data_dir, 'train-v2.0.json')
@@ -205,7 +240,6 @@ def main():
     logger.info('{}-dim word vector path: {}'.format(args.glove_dim, args.glove))
     glove_path = args.glove
     glove_dim = args.glove_dim
-    nlp = spacy.load('en', parser=False)
     set_environment(args.seed)
     logger.info('Loading glove vocab.')
     glove_vocab = load_glove_vocab(glove_path, glove_dim)
@@ -213,9 +247,10 @@ def main():
     logger.info('Loading data vocab.')
     train_data = load_data(train_path)
     valid_data = load_data(valid_path, False)
-    vocab_tag = Vocabulary.build(nlp.tagger.tag_names, neat=True)
-    vocab_ner = Vocabulary.build([''] + nlp.entity.cfg[u'actions']['1'], neat=True)
+
+
     logger.info('Build vocabulary')
+    vocab_tag, vocab_ner = build_spacy_vocab()
     vocab = build_vocab(train_data + valid_data, glove_vocab, sort_all=args.sort_all, clean_on=True)
     meta_path = os.path.join(args.data_dir, args.meta)
     logger.info('building embedding')
