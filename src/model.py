@@ -22,6 +22,7 @@ class DocReaderModel(object):
         self.train_loss = AverageMeter()
 
         self.network = DNetwork(opt, embedding)
+        
         if state_dict:
             new_state = set(self.network.state_dict().keys())
             for k in list(state_dict['network'].keys()):
@@ -34,6 +35,7 @@ class DocReaderModel(object):
 
         # Building optimizer.
         parameters = [p for p in self.network.parameters() if p.requires_grad]
+
         if opt['optimizer'] == 'sgd':
             self.optimizer = optim.SGD(parameters, opt['learning_rate'],
                                        momentum=opt['momentum'],
@@ -59,6 +61,7 @@ class DocReaderModel(object):
             wvec_size = 0
         else:
             wvec_size = (opt['vocab_size'] - opt['tune_partial']) * opt['embedding_dim']
+        
         if opt.get('have_lr_scheduler', False):
             if opt.get('scheduler_type', 'rop') == 'rop':
                 self.scheduler = ReduceLROnPlateau(self.optimizer, mode='max', factor=opt['lr_gamma'], patience=3)
@@ -72,16 +75,28 @@ class DocReaderModel(object):
         self.total_param = sum([p.nelement() for p in parameters]) - wvec_size
 
     def update(self, batch):
+        """
+        The SAN learning algorithm is to learn a function f(Q,P) -> A, at a word level. 
+        The training data is a set of the query, passage and the answer tuples <Q,P,A>.
+        """
         self.network.train()
+        
         if self.opt['cuda']:
             y = Variable(batch['start'].cuda(async=True)), Variable(batch['end'].cuda(async=True))
         else:
             y = Variable(batch['start']), Variable(batch['end'])
+        
+        # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
         start, end = self.network(batch)
+        
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
+        
         self.train_loss.update(loss.data[0], len(start))
         self.optimizer.zero_grad()
+        
+        # have all gradients computed automatically. 
         loss.backward()
+        
         torch.nn.utils.clip_grad_norm(self.network.parameters(),
                                       self.opt['grad_clipping'])
         self.optimizer.step()
