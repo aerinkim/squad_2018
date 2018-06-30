@@ -19,6 +19,7 @@ def load_meta(opt, meta_path):
     return embedding, opt
 
 class BatchGen:
+    """A class to hold the information needed for a training batch"""
     def __init__(self, data_path, batch_size, gpu, is_train=True, doc_maxlen=1000):
         self.batch_size = batch_size
         self.doc_maxlen = doc_maxlen
@@ -30,6 +31,7 @@ class BatchGen:
             indices = list(range(len(self.data)))
             random.shuffle(indices)
             data = [self.data[i] for i in indices]
+        # Shuffling for training
         data = [self.data[i:i + batch_size] for i in range(0, len(self.data), batch_size)]
         self.data = data
         self.offset = 0
@@ -66,10 +68,12 @@ class BatchGen:
             batch = self.data[self.offset]
             batch_size = len(batch)
             batch_dict = {}
-
+            # maximum length for padding. "doc_" prefix means context.
             doc_len = max(len(x['doc_tok']) for x in batch)
             # feature vector
             feature_len = len(eval(batch[0]['doc_fea'])[0]) if len(batch[0].get('doc_fea', [])) > 0 else 0
+            
+            # padding
             doc_id = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_tag = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_ent = torch.LongTensor(batch_size, doc_len).fill_(0)
@@ -89,7 +93,7 @@ class BatchGen:
                 select_len = min(len(sample['query_tok']), query_len)
                 query_id[i, :len(sample['query_tok'])] = torch.LongTensor(sample['query_tok'][:select_len])
 
-            # doc_mask / query_mask has the same shape as doc_id / query_id
+            # both masks have the same shape as their _id's.
             doc_mask = torch.eq(doc_id, 0) 
             query_mask = torch.eq(query_id, 0)
             

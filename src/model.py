@@ -75,13 +75,22 @@ class DocReaderModel(object):
         self.total_param = sum([p.nelement() for p in parameters]) - wvec_size
 
     def update(self, batch):
+        """
+        The SAN learning algorithm is to learn a function f(Q,P) -> A, at a word level. 
+        The training data is a set of the query, passage and the answer tuples <Q,P,A>.
+        """
         self.network.train()
+        
         if self.opt['cuda']:
             y = Variable(batch['start'].cuda(async=True)), Variable(batch['end'].cuda(async=True))
         else:
             y = Variable(batch['start']), Variable(batch['end'])
+        
+        # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
         start, end = self.network(batch)
+        
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
+        
         self.train_loss.update(loss.data[0], len(start))
         self.optimizer.zero_grad()
         
