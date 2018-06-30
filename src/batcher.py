@@ -6,8 +6,11 @@ import random
 import string
 import logging
 import numpy as np
+import spacy
 import pickle as pkl
 from shutil import copyfile
+from my_utils.tokenizer import Vocabulary, reform_text
+from allennlp.modules.elmo import Elmo, batch_to_ids
 
 def load_meta(opt, meta_path):
     with open(meta_path, 'rb') as f:
@@ -64,6 +67,11 @@ class BatchGen:
         return len(self.data)
 
     def __iter__(self):
+        def sentence_to_list(sentence):
+            NLP = spacy.load('en', disable=['vectors', 'textcat', 'parser'])
+            tokens = NLP(reform_text(sentence))
+            return [ w.text for w in tokens if len(w.text) > 0]
+
         while self.offset < len(self):
             batch = self.data[self.offset]
             batch_size = len(batch)
@@ -94,7 +102,7 @@ class BatchGen:
                 query_id[i, :len(sample['query_tok'])] = torch.LongTensor(sample['query_tok'][:select_len])
 
             # both masks have the same shape as their _id's.
-            doc_mask = torch.eq(doc_id, 0) 
+            doc_mask = torch.eq(doc_id, 0)
             query_mask = torch.eq(query_id, 0)
             
             batch_dict['doc_tok'] = doc_id
@@ -104,6 +112,8 @@ class BatchGen:
             batch_dict['query_tok'] = query_id
             batch_dict['doc_mask'] = doc_mask
             batch_dict['query_mask'] = query_mask
+            batch_dict['doc_char_ids'] = batch_to_ids([ sentence_to_list(sample['context']) for sample in batch])
+            batch_dict['query_char_ids'] = batch_to_ids([sentence_to_list(sample['question']) for sample in batch])
 
             if self.is_train:
                 start = [sample['start'] for sample in batch]
