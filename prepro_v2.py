@@ -19,7 +19,7 @@ from my_utils.tokenizer import Vocabulary, reform_text
 from my_utils.word2vec_utils import load_glove_vocab, build_embedding
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
-from config import set_args
+from config_v2 import set_args
 
 """
 This script is to preproces SQuAD dataset.
@@ -92,7 +92,6 @@ def load_data(path, is_train=True):
     for article in tqdm.tqdm(data, total=len(data)):
         for paragraph in article['paragraphs']:
             context = paragraph['context']
-
             for qa in paragraph['qas']:
                 uid, question = qa['id'], qa['question']
                 is_impossible = qa.get('is_impossible', False)
@@ -103,11 +102,9 @@ def load_data(path, is_train=True):
                     answer = answers[0]['text']
                     answer_start = answers[0]['answer_start']
                     answer_end = answer_start + len(answer)
-
                     sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end, 'label': label}
                 else:
                     sample = {'uid': uid, 'context': context, 'question': question, 'answer': answers, 'answer_start': -1, 'answer_end':-1, 'label': 0}
-
                 rows.append(sample)
     return rows
 
@@ -158,7 +155,6 @@ def build_span(context, answer, context_token, answer_start, answer_end, is_trai
     else:
         return (t_start, t_end, t_span)
 
-
 def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
     def feature_func(sample):
         query_tokend = NLP(reform_text(sample['question']))
@@ -167,7 +163,6 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict = {}
         fea_dict['uid'] = sample['uid']
         fea_dict['context'] = sample['context']
-        fea_dict['is_impossible'] = sample['is_impossible']
         fea_dict['query_tok'] = tok_func(query_tokend, vocab)
         fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
         fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
@@ -198,14 +193,13 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         writer.write("\n".join(res_list))
     logger.info('dropped {} in total {}'.format(dropped_sample, len(data)))
 
-
 def main():
     args = set_args()
     global logger
     logger = create_logger(__name__, to_disk=True, log_file=args.log_file)
-    logger.info('~Processing SQuAD dataset~')
-    train_path = os.path.join(args.data_dir, 'train-v1.1.json')
-    valid_path = os.path.join(args.data_dir, 'dev-v1.1.json')
+    logger.info('~Processing SQuAD V2 dataset~')
+    train_path = os.path.join(args.data_dir, 'train-v2.0.json')
+    valid_path = os.path.join(args.data_dir, 'dev-v2.0.json')
     logger.info('The path of training data: {}'.format(train_path))
     logger.info('The path of validation data: {}'.format(valid_path))
     logger.info('{}-dim word vector path: {}'.format(args.glove_dim, args.glove))
@@ -227,12 +221,8 @@ def main():
     logger.info('building embedding')
     embedding = build_embedding(glove_path, vocab, glove_dim)
     meta = {'vocab': vocab, 'vocab_tag': vocab_tag, 'vocab_ner': vocab_ner, 'embedding': embedding}
-    
-    # If you want to check vocab token IDs, etc., load the meta file below (squad_meta.pick).
     with open(meta_path, 'wb') as f:
         pickle.dump(meta, f)
-    
-    logger.info('started the function build_data')
     train_fout = os.path.join(args.data_dir, args.train_data)
     build_data(train_data, vocab, vocab_tag, vocab_ner, train_fout, True, thread=args.threads)
     dev_fout = os.path.join(args.data_dir, args.dev_data)

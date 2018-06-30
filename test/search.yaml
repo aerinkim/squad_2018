@@ -1,0 +1,20 @@
+description: Hyperparam SAN Test
+
+auth:
+  vc: resrchvc
+  cluster: gcr
+  docker_repo: philly/jobs/test/pytorch
+  docker_tag: pytorch0.4.0-py36-mrc
+
+code:
+  code_upload: True
+  local_dir: ./
+
+data:
+  data_upload: False
+
+jobs:
+  - name: test_philly
+    n_gpu: 1
+    args: "--covec_path /hdfs/resrchvc/xiaodl/data/MT-LSTM.pt --data_dir /hdfs/resrchvc/xiaodl/data/"
+    entry_point: train.py
