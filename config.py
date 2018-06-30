@@ -103,7 +103,7 @@ def model_config(parser):
 def data_config(parser):
     parser.add_argument('--log_file', default='san.log', help='path for log file.')
     parser.add_argument('--data_dir', default='data/')
-    parser.add_argument('--meta', default='squad_meta.pick', help='path to preprocessed meta file.')
+    parser.add_argument('--meta', default='squad_meta_v1.pick', help='path to preprocessed meta file.')
     parser.add_argument('--train_data', default='train_data_v1.json',
                         help='path to preprocessed training data file.')
     parser.add_argument('--dev_data', default='dev_data_v1.json',
