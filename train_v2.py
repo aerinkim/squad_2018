@@ -15,7 +15,7 @@ from datetime import datetime
 from collections import Counter, defaultdict
 from src.model import DocReaderModel
 from src.batcher import load_meta, BatchGen
-from config import set_args
+from config_v2 import set_args
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from my_utils.squad_eval import evaluate_file

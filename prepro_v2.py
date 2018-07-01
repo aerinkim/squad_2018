@@ -20,7 +20,6 @@ from my_utils.word2vec_utils import load_glove_vocab, build_embedding
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from config_v2 import set_args
-from allennlp.modules.elmo import Elmo, batch_to_ids
 
 """
 This script is to preproces SQuAD dataset.
@@ -118,8 +117,6 @@ def nertag_func(toks, vocab):
 def tok_func(toks, vocab):
     return [vocab[w.text] for w in toks if len(w.text) > 0]
 
-def char_ids_func(toks):
-    return batch_to_ids([ w.text for w in toks if len(w.text) > 0])
 
 def match_func(question, context):
     counter = Counter(w.text.lower() for w in context)
@@ -169,11 +166,9 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict['context'] = sample['context']
         fea_dict['question'] = sample['question']
         fea_dict['query_tok'] = tok_func(query_tokend, vocab)
-        #fea_dict['query_char_ids'] = char_ids_func(query_tokend)
         fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
         fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
         fea_dict['doc_tok'] = tok_func(doc_tokend, vocab)
-        #fea_dict['doc_char_ids'] = char_ids_func(doc_tokend)
         fea_dict['doc_pos'] = postag_func(doc_tokend, vocab_tag)
         fea_dict['doc_ner'] = nertag_func(doc_tokend, vocab_ner)
         fea_dict['doc_fea'] = '{}'.format(match_func(query_tokend, doc_tokend))  # json don't support float
@@ -224,7 +219,7 @@ def build_spacy_vocab():
     }
 
     vocab_tag = Vocabulary.build(nlp.tagger.labels, neat=True)
-    vocab_ner = Vocabulary.build(ner_dict.keys(), neat=True)
+    vocab_ner = Vocabulary.build([''] + list(ner_dict.keys()), neat=True)
 
     return vocab_tag, vocab_ner
 
