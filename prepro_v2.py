@@ -117,7 +117,6 @@ def nertag_func(toks, vocab):
 def tok_func(toks, vocab):
     return [vocab[w.text] for w in toks if len(w.text) > 0]
 
-
 def match_func(question, context):
     counter = Counter(w.text.lower() for w in context)
     total = sum(counter.values())
@@ -195,38 +194,9 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         writer.write("\n".join(res_list))
     logger.info('dropped {} in total {}'.format(dropped_sample, len(data)))
 
-def build_spacy_vocab():
-    nlp = spacy.load('en', parser=False)
-    ner_dict = {
-    'PERSON':       'People, including fictional',
-    'NORP':         'Nationalities or religious or political groups',
-    'FACILITY':     'Buildings, airports, highways, bridges, etc.',
-    'ORG':          'Companies, agencies, institutions, etc.',
-    'GPE':          'Countries, cities, states',
-    'LOC':          'Non-GPE locations, mountain ranges, bodies of water',
-    'PRODUCT':      'Objects, vehicles, foods, etc. (not services)',
-    'EVENT':        'Named hurricanes, battles, wars, sports events, etc.',
-    'WORK_OF_ART':  'Titles of books, songs, etc.',
-    'LAW':          'Named documents made into laws.',
-    'LANGUAGE':     'Any named language',
-    'DATE':         'Absolute or relative dates or periods',
-    'TIME':         'Times smaller than a day',
-    'PERCENT':      'Percentage, including "%"',
-    'MONEY':        'Monetary values, including unit',
-    'QUANTITY':     'Measurements, as of weight or distance',
-    'ORDINAL':      '"first", "second", etc.',
-    'CARDINAL':     'Numerals that do not fall under another type',
-    }
-
-    vocab_tag = Vocabulary.build(nlp.tagger.labels, neat=True)
-    vocab_ner = Vocabulary.build([''] + list(ner_dict.keys()), neat=True)
-
-    return vocab_tag, vocab_ner
-
 def main():
     args = set_args()
     global logger
-
     logger = create_logger(__name__, to_disk=True, log_file=args.log_file)
     logger.info('~Processing SQuAD V2 dataset~')
     train_path = os.path.join(args.data_dir, 'train-v2.0.json')
@@ -236,6 +206,7 @@ def main():
     logger.info('{}-dim word vector path: {}'.format(args.glove_dim, args.glove))
     glove_path = args.glove
     glove_dim = args.glove_dim
+    nlp = spacy.load('en', parser=False)
     set_environment(args.seed)
     logger.info('Loading glove vocab.')
     glove_vocab = load_glove_vocab(glove_path, glove_dim)
@@ -243,10 +214,9 @@ def main():
     logger.info('Loading data vocab.')
     train_data = load_data(train_path)
     valid_data = load_data(valid_path, False)
-
-
+    vocab_tag = Vocabulary.build(nlp.tagger.tag_names, neat=True)
+    vocab_ner = Vocabulary.build([''] + nlp.entity.cfg[u'actions']['1'], neat=True)
     logger.info('Build vocabulary')
-    vocab_tag, vocab_ner = build_spacy_vocab()
     vocab = build_vocab(train_data + valid_data, glove_vocab, sort_all=args.sort_all, clean_on=True)
     meta_path = os.path.join(args.data_dir, args.meta)
     logger.info('building embedding')
