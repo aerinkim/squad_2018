@@ -8,7 +8,6 @@ import argparse
 import json
 import torch
 import msgpack
-import pandas as pd
 import numpy as np
 from shutil import copyfile
 from datetime import datetime
@@ -30,7 +29,7 @@ model_dir = os.path.abspath(model_dir)
 # set environment
 set_environment(args.seed, args.cuda)
 # setup logger
-logger =  create_logger(__name__, to_disk=True, log_file=args.log_file)
+logger =  create_logger(__name__, to_disk=True, log_file=os.path.join(model_dir, args.log_file))
 
 def check(model, data, gold_path):
     data.reset()
@@ -96,9 +95,11 @@ def main():
                 model.scheduler.step()
         # save
         model_file = os.path.join(model_dir, 'checkpoint_epoch_{}.pt'.format(epoch))
-        model.save(model_file, epoch)
+        if not args.philly_on:
+            model.save(model_file, epoch)
         if em + f1 > best_em_score + best_f1_score:
-            copyfile(model_file, os.path.join(model_dir, 'best_checkpoint.pt'))
+            model.save(os.path.join(model_dir, 'best_checkpoint.pt'))
+            # copyfile(model_file, os.path.join(model_dir, 'best_checkpoint.pt'))
             best_em_score, best_f1_score = em, f1
             logger.info('Saved the new best model and prediction')
         logger.warning("Epoch {0} - dev EM: {1:.3f} F1: {2:.3f} (best EM: {3:.3f} F1: {4:.3f})".format(epoch, em, f1, best_em_score, best_f1_score))

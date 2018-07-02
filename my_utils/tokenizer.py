@@ -1,6 +1,5 @@
 import re
 import warnings
-import spacy
 import tqdm
 import logging
 import unicodedata

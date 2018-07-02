@@ -10,6 +10,7 @@ def model_config(parser):
     parser.add_argument('--wemb_dim', type=int, default=300)
     parser.add_argument('--covec_on', action='store_false')
     parser.add_argument('--embedding_dim', type=int, default=300)
+    parser.add_argument('--philly_on', action='store_true')
 
     # pos
     parser.add_argument('--no_pos', dest='pos_on', action='store_false')
