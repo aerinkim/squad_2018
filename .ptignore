@@ -13,7 +13,7 @@ run_phillytools_xdl.py
 .ptignore
 *philly
 *pyproj
-*vc
+*vs
 *pyc
 prepro*
 model_data*

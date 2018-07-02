@@ -16,5 +16,5 @@ data:
 jobs:
   - name: test_philly
     n_gpu: 1
-    args: "--covec_path /hdfs/resrchvc/xiaodl/data/MT-LSTM.pt --data_dir /hdfs/resrchvc/xiaodl/data/"
+    args: "--covec_path /hdfs/resrchvc/xiaodl/data/MT-LSTM.pt --data_dir /hdfs/resrchvc/xiaodl/data/ --philly_on"
     entry_point: train.py
