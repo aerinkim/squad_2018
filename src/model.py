@@ -48,6 +48,11 @@ class DocReaderModel(object):
             self.optimizer = optim.Adam(parameters,
                                         opt['learning_rate'],
                                         weight_decay=opt['weight_decay'])
+        elif opt['optimizer'] == 'ams':
+            self.optimizer = optim.Adam(parameters,
+                                        opt['learning_rate'],
+                                        weight_decay=opt['weight_decay'],
+                                        amsgrad=True)
         elif opt['optimizer'] == 'adadelta':
             self.optimizer = optim.Adadelta(parameters,
                                             opt['learning_rate'],

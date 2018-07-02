@@ -136,7 +136,7 @@ def train_config(parser):
     parser.add_argument('--expect_version', default='v1.0')
     parser.add_argument('--resume')
     parser.add_argument('--optimizer', default='adamax',
-                        help='supported optimizer: adamax, sgd, adadelta, adam')
+                        help='supported optimizer: adamax, sgd, adadelta, adam, ams')
     parser.add_argument('--grad_clipping', type=float, default=10)
     parser.add_argument('--weight_decay', type=float, default=0)
     parser.add_argument('--learning_rate', type=float, default=0.002)
