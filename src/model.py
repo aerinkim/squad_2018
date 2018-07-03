@@ -159,7 +159,7 @@ class DocReaderModel(object):
                 self.network.lexicon_encoder.embedding.weight.data[offset:] \
                     = self.network.lexicon_encoder.fixed_embedding
 
-    def save(self, filename, epoch):
+    def save(self, filename):
         # strip cove
         network_state = dict([(k, v) for k, v in self.network.state_dict().items() if k[0:4] != 'CoVe'])
         if 'eval_embed.weight' in network_state:

@@ -7,8 +7,10 @@ from collections import Counter
 from functools import partial
 from multiprocessing import Pool as ThreadPool
 
+
 logger = logging.getLogger(__name__)
 
+DUMMY = 'DUMMMMMY'
 PAD = '<PAD>'
 UNK = '<UNK>'
 STA= '<BOS>'

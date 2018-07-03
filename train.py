@@ -96,7 +96,7 @@ def main():
         # save
         model_file = os.path.join(model_dir, 'checkpoint_epoch_{}.pt'.format(epoch))
         if not args.philly_on:
-            model.save(model_file, epoch)
+            model.save(model_file)
         if em + f1 > best_em_score + best_f1_score:
             model.save(os.path.join(model_dir, 'best_checkpoint.pt'))
             # copyfile(model_file, os.path.join(model_dir, 'best_checkpoint.pt'))
