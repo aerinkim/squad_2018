@@ -129,6 +129,7 @@ def data_config(parser):
     return parser
 
 def train_config(parser):
+    parser.add_argument('--extra_loss', dest='extra_loss_on', action='store_true')
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available(),
                         help='whether to use GPU acceleration.')
     parser.add_argument('--log_per_updates', type=int, default=50)

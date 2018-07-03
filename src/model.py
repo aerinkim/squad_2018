@@ -80,17 +80,22 @@ class DocReaderModel(object):
         The training data is a set of the query, passage and the answer tuples <Q,P,A>.
         """
         self.network.train()
-        
+
         if self.opt['cuda']:
             y = Variable(batch['start'].cuda(async=True)), Variable(batch['end'].cuda(async=True))
+            label = Variable(batch['label'].cuda(async=True))
         else:
             y = Variable(batch['start']), Variable(batch['end'])
-        
+            label = Variable(batch['label'])
+
+
         # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
-        start, end = self.network(batch)
+        start, end, pred = self.network(batch)
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
-        
+        if self.opt.get('extra_loss', False):
+            loss = loss + F.cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
+
         self.train_loss.update(loss.data[0], len(start))
         self.optimizer.zero_grad()
         
@@ -107,11 +112,12 @@ class DocReaderModel(object):
     def predict(self, batch, top_k=1):
         self.network.eval()
         self.network.drop_emb = False
-        start, end = self.network(batch)
+        start, end, lab = self.network(batch)
         start = F.softmax(start)
         end = F.softmax(end)
         start = start.data.cpu()
         end = end.data.cpu()
+        lab = lab.data.cpu()
         text = batch['text']
         spans = batch['span']
         predictions = []
@@ -125,12 +131,21 @@ class DocReaderModel(object):
             scores = scores * pos_enc
             scores.triu_()
             scores = scores.numpy()
+            label_score = float(lab[i])
             best_idx = np.argpartition(scores, -top_k, axis=None)[-top_k]
             best_score = np.partition(scores, -top_k, axis=None)[-top_k]
             s_idx, e_idx = np.unravel_index(best_idx, scores.shape)
-            s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
-            predictions.append(text[i][s_offset:e_offset])
-            best_scores.append(best_score)
+            if self.opt.get('extra_loss', False):
+                s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
+                answer = text[i][s_offset:e_offset]
+                if s_idx == len(spans[i]) - 1 or label_score < self.opt.get('classifier_threshold', 0.5):
+                    answer = ''
+                predictions.append(answer)
+                best_scores.append(best_score * lab)
+            else:
+                s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
+                predictions.append(text[i][s_offset:e_offset])
+                best_scores.append(best_score)
 
         return (predictions, best_scores)
 

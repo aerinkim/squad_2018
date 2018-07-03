@@ -9,6 +9,7 @@ from .encoder import LexiconEncoder
 from .similarity import DeepAttentionWrapper, FlatSimilarityWrapper, SelfAttnWrapper
 from .similarity import AttentionWrapper
 from .san import SAN
+from .classifier import ClassifierPN
 
 class DNetwork(nn.Module):
     """Network for SAN doc reader."""
@@ -63,6 +64,10 @@ class DNetwork(nn.Module):
         # Question merging
         self.query_sum_attn = SelfAttnWrapper(query_mem_hidden_size, prefix='query_sum', opt=opt, dropout=my_dropout)
         self.decoder = SAN(doc_mem_hidden_size, query_mem_hidden_size, opt, prefix='decoder', dropout=my_dropout)
+        if opt.get('extra_loss', False):
+            self.classifier = ClassifierPN(query_mem_hidden_size, doc_mem_hidden_size,prefix='classifier', dropout=my_dropout)
+        else:
+            self.classifier = None
         self.opt = opt
 
     def forward(self, batch):
@@ -107,5 +112,7 @@ class DNetwork(nn.Module):
             doc_mem = doc_mem_hiddens
         query_mem = self.query_sum_attn(query_mem_hiddens, query_mask)
         start_scores, end_scores = self.decoder(doc_mem, query_mem, doc_mask)
-
-        return start_scores, end_scores
+        pred_score = None
+        if self.classifier is not None:
+            pred_score = self.classifier(doc_mem, query_mem, doc_mask)
+        return start_scores, end_scores, pred_score

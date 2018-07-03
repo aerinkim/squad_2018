@@ -182,12 +182,18 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict['doc_ner'] = nertag_func(doc_tokend, vocab_ner)
         fea_dict['doc_fea'] = '{}'.format(match_func(query_tokend, doc_tokend))  # json don't support float
         doc_toks = [t.text for t in doc_tokend]
-        start, end, span = build_span(sample['context'], sample['answer'], doc_toks, sample['answer_start'],
-                                      sample['answer_end'], is_train=is_train)
-        if is_train and (start == -1 or end == -1): return None
+        answer_start = sample['answer_start']
+        answer_end = sample['answer_end']
+        answer = sample['answer']
+
         if is_train and sample['label'] < 1: 
-            start = end = len(fea_dict['doc_tok']) - 1
-            print('doc len: {} with begin: {}'.format(len(fea_dict['doc_tok']), start))
+            answer_end = len(context)
+            answer = DUMMY
+            answer_start = len(context) - len(answer)
+
+        start, end, span = build_span(context, answer, doc_toks, answer_start,
+                                        answer_end, is_train=is_train)
+        if is_train and (start == -1 or end == -1): return None
         fea_dict['span'] = span
         fea_dict['start'] = start
         fea_dict['end'] = end

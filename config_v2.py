@@ -98,6 +98,15 @@ def model_config(parser):
     parser.add_argument('--decoder_sum_att_type', type=str, default='bilinear',
                         help='bilinear/simple/defualt')
     parser.add_argument('--decoder_weight_norm_on', action='store_true')
+
+    # extra loss
+    parser.add_argument('--classifier_merge_opt', type=int, default=0)
+    parser.add_argument('--classifier_dropout_p', type=float, default=0.1)
+    parser.add_argument('--classifier_weight_norm_on', action='store_false')
+    parser.add_argument('--classifier_opt', type=int, default=2, help='0,1,2')
+    parser.add_argument('--classifier_gamma', type=int, default=0.5)
+    parser.add_argument('--classifier_threshold', type=int, default=0.4)
+
     return parser
 
 def data_config(parser):
@@ -124,6 +133,7 @@ def data_config(parser):
     return parser
 
 def train_config(parser):
+    parser.add_argument('--extra_loss', dest='extra_loss_on', action='store_false')
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available(), 
                         help='whether to use GPU acceleration.')
     parser.add_argument('--log_per_updates', type=int, default=50)
