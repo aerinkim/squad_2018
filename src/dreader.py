@@ -64,8 +64,8 @@ class DNetwork(nn.Module):
         # Question merging
         self.query_sum_attn = SelfAttnWrapper(query_mem_hidden_size, prefix='query_sum', opt=opt, dropout=my_dropout)
         self.decoder = SAN(doc_mem_hidden_size, query_mem_hidden_size, opt, prefix='decoder', dropout=my_dropout)
-        if opt.get('extra_loss', False):
-            self.classifier = ClassifierPN(query_mem_hidden_size, doc_mem_hidden_size,prefix='classifier', dropout=my_dropout)
+        if opt.get('extra_loss_on', False):
+            self.classifier = ClassifierPN(query_mem_hidden_size, doc_mem_hidden_size, opt=opt, prefix='classifier', dropout=my_dropout)
         else:
             self.classifier = None
         self.opt = opt
@@ -114,5 +114,5 @@ class DNetwork(nn.Module):
         start_scores, end_scores = self.decoder(doc_mem, query_mem, doc_mask)
         pred_score = None
         if self.classifier is not None:
-            pred_score = self.classifier(doc_mem, query_mem, doc_mask)
+            pred_score = F.sigmoid(self.classifier(doc_mem, query_mem, doc_mask))
         return start_scores, end_scores, pred_score

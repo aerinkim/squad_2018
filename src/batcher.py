@@ -111,7 +111,7 @@ class BatchGen:
                 label = [sample['label'] for sample in batch]
                 batch_dict['start'] = torch.LongTensor(start)
                 batch_dict['end'] = torch.LongTensor(end)
-                batch_dict['label'] = torch.LongTensor(label)
+                batch_dict['label'] = torch.FloatTensor(label)
 
             if self.gpu:
                 for k, v in batch_dict.items():

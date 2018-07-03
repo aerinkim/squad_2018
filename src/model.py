@@ -82,19 +82,19 @@ class DocReaderModel(object):
         self.network.train()
 
         if self.opt['cuda']:
-            y = Variable(batch['start'].cuda(async=True)), Variable(batch['end'].cuda(async=True))
-            label = Variable(batch['label'].cuda(async=True))
+            y = Variable(batch['start'].cuda(async=True), requires_grad=False), Variable(batch['end'].cuda(async=True), requires_grad=False)
+            label = Variable(batch['label'].cuda(async=True), requires_grad=False)
         else:
-            y = Variable(batch['start']), Variable(batch['end'])
-            label = Variable(batch['label'])
+            y = Variable(batch['start'], requires_grad=False), Variable(batch['end'], requires_grad=False)
+            label = Variable(batch['label'], requires_grad=False)
 
 
         # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
         start, end, pred = self.network(batch)
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
-        if self.opt.get('extra_loss', False):
-            loss = loss + F.cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
+        if self.opt.get('extra_loss_on', False):
+            loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
 
         self.train_loss.update(loss.data[0], len(start))
         self.optimizer.zero_grad()
@@ -135,7 +135,7 @@ class DocReaderModel(object):
             best_idx = np.argpartition(scores, -top_k, axis=None)[-top_k]
             best_score = np.partition(scores, -top_k, axis=None)[-top_k]
             s_idx, e_idx = np.unravel_index(best_idx, scores.shape)
-            if self.opt.get('extra_loss', False):
+            if self.opt.get('extra_loss_on', False):
                 s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
                 answer = text[i][s_offset:e_offset]
                 if s_idx == len(spans[i]) - 1 or label_score < self.opt.get('classifier_threshold', 0.5):
