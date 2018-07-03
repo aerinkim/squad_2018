@@ -80,17 +80,22 @@ class DocReaderModel(object):
         The training data is a set of the query, passage and the answer tuples <Q,P,A>.
         """
         self.network.train()
-        
+
         if self.opt['cuda']:
-            y = Variable(batch['start'].cuda(async=True)), Variable(batch['end'].cuda(async=True))
+            y = Variable(batch['start'].cuda(async=True), requires_grad=False), Variable(batch['end'].cuda(async=True), requires_grad=False)
+            label = Variable(batch['label'].cuda(async=True), requires_grad=False)
         else:
-            y = Variable(batch['start']), Variable(batch['end'])
-        
+            y = Variable(batch['start'], requires_grad=False), Variable(batch['end'], requires_grad=False)
+            label = Variable(batch['label'], requires_grad=False)
+
+
         # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
-        start, end = self.network(batch)
+        start, end, pred = self.network(batch)
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
-        
+        if self.opt.get('extra_loss_on', False):
+            loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
+
         self.train_loss.update(loss.data[0], len(start))
         self.optimizer.zero_grad()
         
@@ -107,11 +112,12 @@ class DocReaderModel(object):
     def predict(self, batch, top_k=1):
         self.network.eval()
         self.network.drop_emb = False
-        start, end = self.network(batch)
+        start, end, lab = self.network(batch)
         start = F.softmax(start)
         end = F.softmax(end)
         start = start.data.cpu()
         end = end.data.cpu()
+        lab = lab.data.cpu()
         text = batch['text']
         spans = batch['span']
         predictions = []
@@ -125,12 +131,21 @@ class DocReaderModel(object):
             scores = scores * pos_enc
             scores.triu_()
             scores = scores.numpy()
+            label_score = float(lab[i])
             best_idx = np.argpartition(scores, -top_k, axis=None)[-top_k]
             best_score = np.partition(scores, -top_k, axis=None)[-top_k]
             s_idx, e_idx = np.unravel_index(best_idx, scores.shape)
-            s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
-            predictions.append(text[i][s_offset:e_offset])
-            best_scores.append(best_score)
+            if self.opt.get('extra_loss_on', False):
+                s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
+                answer = text[i][s_offset:e_offset]
+                if s_idx == len(spans[i]) - 1 or label_score < self.opt.get('classifier_threshold', 0.5):
+                    answer = ''
+                predictions.append(answer)
+                best_scores.append(best_score * lab)
+            else:
+                s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
+                predictions.append(text[i][s_offset:e_offset])
+                best_scores.append(best_score)
 
         return (predictions, best_scores)
 
@@ -159,7 +174,7 @@ class DocReaderModel(object):
                 self.network.lexicon_encoder.embedding.weight.data[offset:] \
                     = self.network.lexicon_encoder.fixed_embedding
 
-    def save(self, filename, epoch):
+    def save(self, filename):
         # strip cove
         network_state = dict([(k, v) for k, v in self.network.state_dict().items() if k[0:4] != 'CoVe'])
         if 'eval_embed.weight' in network_state:

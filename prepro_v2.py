@@ -15,11 +15,12 @@ import pickle
 from functools import partial
 from collections import Counter
 ## clean up
-from my_utils.tokenizer import Vocabulary, reform_text
+from my_utils.tokenizer import Vocabulary, reform_text, DUMMY
 from my_utils.word2vec_utils import load_glove_vocab, build_embedding
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from config_v2 import set_args
+
 
 """
 This script is to preproces SQuAD dataset.
@@ -98,11 +99,19 @@ def load_data(path, is_train=True):
                 label = 0 if is_impossible else 1
                 answers = qa.get('answers', [])
                 if is_train:
-                    if len(answers) < 1: continue
-                    answer = answers[0]['text']
-                    answer_start = answers[0]['answer_start']
-                    answer_end = answer_start + len(answer)
-                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end, 'label': label}
+                    if label > 0 and len(answers) < 1:
+                        continue
+                    if len(answers) > 0:
+                        answer = answers[0]['text']
+                        answer_start = answers[0]['answer_start']
+                        answer_end = answer_start + len(answer)
+                        sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end, 'label': label}
+                    else:
+                        answer = ''
+                        answer_start = -1
+                        answer_end = -1
+                        sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end, 'label': label}
+
                 else:
                     sample = {'uid': uid, 'context': context, 'question': question, 'answer': answers, 'answer_start': -1, 'answer_end':-1, 'label': 0}
                 rows.append(sample)
@@ -158,11 +167,13 @@ def build_span(context, answer, context_token, answer_start, answer_end, is_trai
 def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
     def feature_func(sample):
         query_tokend = NLP(reform_text(sample['question']))
-        doc_tokend = NLP(reform_text(sample['context']))
+        context = '{} {}'.format(sample['context'], DUMMY)
+        doc_tokend = NLP(reform_text(context))
         # features
         fea_dict = {}
         fea_dict['uid'] = sample['uid']
-        fea_dict['context'] = sample['context']
+        fea_dict['context'] = context
+        fea_dict['label'] = sample['label']
         fea_dict['query_tok'] = tok_func(query_tokend, vocab)
         fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
         fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
@@ -171,8 +182,17 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict['doc_ner'] = nertag_func(doc_tokend, vocab_ner)
         fea_dict['doc_fea'] = '{}'.format(match_func(query_tokend, doc_tokend))  # json don't support float
         doc_toks = [t.text for t in doc_tokend]
-        start, end, span = build_span(sample['context'], sample['answer'], doc_toks, sample['answer_start'],
-                                      sample['answer_end'], is_train=is_train)
+        answer_start = sample['answer_start']
+        answer_end = sample['answer_end']
+        answer = sample['answer']
+
+        if is_train and sample['label'] < 1: 
+            answer_end = len(context)
+            answer = DUMMY
+            answer_start = len(context) - len(answer)
+
+        start, end, span = build_span(context, answer, doc_toks, answer_start,
+                                        answer_end, is_train=is_train)
         if is_train and (start == -1 or end == -1): return None
         fea_dict['span'] = span
         fea_dict['start'] = start
