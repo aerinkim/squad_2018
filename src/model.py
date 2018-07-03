@@ -88,8 +88,8 @@ class DocReaderModel(object):
             y = Variable(batch['start'], requires_grad=False), Variable(batch['end'], requires_grad=False)
             label = Variable(batch['label'], requires_grad=False)
 
-        # start/end : start/end of the answer span - score of every token in the passage 
-        # These are calculated by combination of log_softmax and nll_loss (cross_entropy.)
+        # start & end : start/end of the answer span - score of every token in the passage 
+        # start & end are calculated by combination of log_softmax and nll_loss (cross_entropy.)
         start, end, pred = self.network(batch)
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
