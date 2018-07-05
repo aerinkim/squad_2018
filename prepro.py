@@ -1,3 +1,4 @@
+# sync file test
 import re
 import os
 import json
@@ -20,6 +21,7 @@ from my_utils.word2vec_utils import load_glove_vocab, build_embedding
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from config import set_args
+from allennlp.modules.elmo import batch_to_ids
 
 """
 This script is to preproces SQuAD dataset.
@@ -158,6 +160,9 @@ def build_span(context, answer, context_token, answer_start, answer_end, is_trai
     else:
         return (t_start, t_end, t_span)
 
+def charids_func(toks):
+    sentence = [w.text for w in toks if len(w.text) > 0]
+    return batch_to_ids([sentence])[0].tolist()
 
 def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
     def feature_func(sample):
@@ -167,8 +172,6 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict = {}
         fea_dict['uid'] = sample['uid']
         fea_dict['context'] = sample['context']
-        fea_dict['question'] = sample['question']
-        fea_dict['is_impossible'] = sample['is_impossible']
         fea_dict['query_tok'] = tok_func(query_tokend, vocab)
         fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
         fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
@@ -176,6 +179,9 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict['doc_pos'] = postag_func(doc_tokend, vocab_tag)
         fea_dict['doc_ner'] = nertag_func(doc_tokend, vocab_ner)
         fea_dict['doc_fea'] = '{}'.format(match_func(query_tokend, doc_tokend))  # json don't support float
+        # convert sentence to elmo input
+        fea_dict['doc_char_ids'] = charids_func(doc_tokend)
+        fea_dict['query_char_ids'] = charids_func(query_tokend)
         doc_toks = [t.text for t in doc_tokend]
         start, end, span = build_span(sample['context'], sample['answer'], doc_toks, sample['answer_start'],
                                       sample['answer_end'], is_train=is_train)
@@ -224,6 +230,7 @@ def main():
     vocab_ner = Vocabulary.build([''] + nlp.entity.cfg[u'actions']['1'], neat=True)
     logger.info('Build vocabulary')
     vocab = build_vocab(train_data + valid_data, glove_vocab, sort_all=args.sort_all, clean_on=True)
+   
     meta_path = os.path.join(args.data_dir, args.meta)
     logger.info('building embedding')
     embedding = build_embedding(glove_path, vocab, glove_dim)
@@ -232,12 +239,13 @@ def main():
     # If you want to check vocab token IDs, etc., load the meta file below (squad_meta.pick).
     with open(meta_path, 'wb') as f:
         pickle.dump(meta, f)
-    
     logger.info('started the function build_data')
     train_fout = os.path.join(args.data_dir, args.train_data)
     build_data(train_data, vocab, vocab_tag, vocab_ner, train_fout, True, thread=args.threads)
     dev_fout = os.path.join(args.data_dir, args.dev_data)
     build_data(valid_data, vocab, vocab_tag, vocab_ner, dev_fout, False, thread=args.threads)
+
+ 
 
 if __name__ == '__main__':
     main()

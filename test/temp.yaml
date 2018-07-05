@@ -1,10 +1,10 @@
 description: Hyperparam SAN Test
 
 auth:
-  vc: resrchvc
-  cluster: gcr
+  vc: VC_NAME
+  cluster: CLUSTER_NAME
   docker_repo: philly/jobs/test/pytorch
-  docker_tag: pytorch0.4.0-py36-mrc
+  docker_tag: pytorch0.4.0-py36-msgpack
 
 code:
   code_upload: True

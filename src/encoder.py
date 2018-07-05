@@ -52,7 +52,15 @@ class LexiconEncoder(nn.Module):
         weights_file = os.path.join(opt['data_dir'], opt.get('{}_weights_file'.format(prefix)))
         self.elmo = Elmo(options_file, weights_file, 2, dropout=0)
 
-        return self.elmo.get_output_dim()
+        assert opt['elmo_output_type'] == "single" or opt['elmo_output_type'] == "all"
+
+        self.elmo_output_dim = self.elmo.get_output_dim()
+        self.elmo_output_type = 0
+        if opt['elmo_output_type'] == 'all':
+            self.elmo_output_type = 1
+            self.elmo_output_dim *= 2
+
+        return self.elmo_output_dim
 
 
     def create_cove(self, vocab_size, embedding=None, embed_dim=300, padding_idx=0, opt=None):
@@ -91,11 +99,8 @@ class LexiconEncoder(nn.Module):
         ner_size = self.create_ner_embed(opt) if opt['ner_on'] else 0
         feat_size = opt['num_features'] if opt['feat_on'] else 0
         print(feat_size)
-        doc_hidden_size = embedding_dim + covec_size + prealign_size + pos_size + ner_size + feat_size
-        # elmo
-        if opt['elmo_on']:
-            doc_hidden_size += elmo_size
-        que_hidden_size = embedding_dim + covec_size
+        doc_hidden_size = embedding_dim + covec_size + prealign_size + pos_size + ner_size + feat_size + elmo_size
+        que_hidden_size = embedding_dim + covec_size + elmo_size
         if opt['prealign_bidi']:
             que_hidden_size += prealign_size
         self.pwnn_on = pwnn_on
@@ -116,6 +121,16 @@ class LexiconEncoder(nn.Module):
         else:
             v = Variable(v)
         return v
+
+    def get_elmo_emb(self, char_ids):
+        sent_elmo = self.elmo(self.patch(char_ids))
+        # get last layer
+        if self.elmo_output_type == 0:
+            sent_elmo_emb = sent_elmo['elmo_representations'][-1]
+        else:
+            sent_elmo_emb = torch.cat(sent_elmo['elmo_representations'], dim=2)
+
+        return sent_elmo_emb
 
     def forward(self, batch):
         drnn_input_list = []
@@ -146,14 +161,12 @@ class LexiconEncoder(nn.Module):
             drnn_input_list.append(doc_cove_low)
             qrnn_input_list.append(query_cove_low)
 
-        # TODO
+        # elmo
         if self.opt['elmo_on']:
-            doc_char_ids = self.patch(batch['doc_char_ids'])
-            doc_elmo = self.elmo(doc_char_ids)
-            # get last layer
-            doc_elmo_emb = doc_elmo['elmo_representations'][-1]
+            doc_elmo_emb = self.get_elmo_emb(batch['doc_char_ids'])
+            query_elmo_emb = self.get_elmo_emb(batch['query_char_ids'])
             drnn_input_list.append(doc_elmo_emb)
-
+            qrnn_input_list.append(query_elmo_emb)
 
         if self.opt['prealign_on']:
             q2d_atten = self.prealign(doc_emb, query_emb, query_mask)

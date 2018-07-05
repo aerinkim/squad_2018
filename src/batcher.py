@@ -6,11 +6,8 @@ import random
 import string
 import logging
 import numpy as np
-import spacy
 import pickle as pkl
 from shutil import copyfile
-from my_utils.tokenizer import Vocabulary, reform_text
-from allennlp.modules.elmo import Elmo, batch_to_ids
 
 def load_meta(opt, meta_path):
     with open(meta_path, 'rb') as f:
@@ -67,10 +64,6 @@ class BatchGen:
         return len(self.data)
 
     def __iter__(self):
-        def sentence_to_list(sentence):
-            NLP = spacy.load('en', disable=['vectors', 'textcat', 'parser'])
-            tokens = NLP(reform_text(sentence))
-            return [ w.text for w in tokens if len(w.text) > 0]
 
         while self.offset < len(self):
             batch = self.data[self.offset]
@@ -80,26 +73,33 @@ class BatchGen:
             doc_len = max(len(x['doc_tok']) for x in batch)
             # feature vector
             feature_len = len(eval(batch[0]['doc_fea'])[0]) if len(batch[0].get('doc_fea', [])) > 0 else 0
+            char_ids_length = len(batch[0].get('doc_char_ids')[0])
             
             # padding
             doc_id = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_tag = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_ent = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_feature = torch.Tensor(batch_size, doc_len, feature_len).fill_(0)
+            doc_char_ids = torch.LongTensor(batch_size, doc_len, char_ids_length).fill_(0)
 
             for i, sample in enumerate(batch):
                 select_len = min(len(sample['doc_tok']), doc_len)
                 doc_id[i, :select_len] = torch.LongTensor(sample['doc_tok'][:select_len])
                 doc_tag[i, :select_len] = torch.LongTensor(sample['doc_pos'][:select_len])
                 doc_ent[i, :select_len] = torch.LongTensor(sample['doc_ner'][:select_len])
+                for j, char_ids in enumerate(sample['doc_char_ids']):
+                    doc_char_ids[i, j, :] = torch.LongTensor(char_ids)
                 for j, feature in enumerate(eval(sample['doc_fea'])):
                     doc_feature[i, j, :] = torch.Tensor(feature)
 
             query_len = max(len(x['query_tok']) for x in batch)
             query_id = torch.LongTensor(batch_size, query_len).fill_(0)
+            query_char_ids = torch.LongTensor(batch_size, query_len, char_ids_length).fill_(0)
             for i, sample in enumerate(batch):
                 select_len = min(len(sample['query_tok']), query_len)
                 query_id[i, :len(sample['query_tok'])] = torch.LongTensor(sample['query_tok'][:select_len])
+                for j, char_ids in enumerate(sample['query_char_ids']):
+                    query_char_ids[i, j, :] = torch.LongTensor(char_ids)
 
             # both masks have the same shape as their _id's.
             doc_mask = torch.eq(doc_id, 0)
@@ -112,8 +112,8 @@ class BatchGen:
             batch_dict['query_tok'] = query_id
             batch_dict['doc_mask'] = doc_mask
             batch_dict['query_mask'] = query_mask
-            batch_dict['doc_char_ids'] = batch_to_ids([ sentence_to_list(sample['context']) for sample in batch])
-            batch_dict['query_char_ids'] = batch_to_ids([sentence_to_list(sample['question']) for sample in batch])
+            batch_dict['doc_char_ids'] = doc_char_ids
+            batch_dict['query_char_ids'] = query_char_ids
 
             if self.is_train:
                 start = [sample['start'] for sample in batch]

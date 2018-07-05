@@ -13,6 +13,7 @@ def model_config(parser):
 
     # elmo
     parser.add_argument('--elmo_on', action='store_true')
+    parser.add_argument('--elmo_output_type', type=str, default='single', help="single/all")
 
     # pos
     parser.add_argument('--no_pos', dest='pos_on', action='store_false')

@@ -20,6 +20,7 @@ from my_utils.word2vec_utils import load_glove_vocab, build_embedding
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from config_v2 import set_args
+from allennlp.modules.elmo import batch_to_ids
 
 """
 This script is to preproces SQuAD dataset.
@@ -155,6 +156,11 @@ def build_span(context, answer, context_token, answer_start, answer_end, is_trai
     else:
         return (t_start, t_end, t_span)
 
+def charids_func(toks):
+    sentence = [w.text for w in toks if len(w.text) > 0]
+    return batch_to_ids([sentence])[0].tolist()
+
+
 def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
     def feature_func(sample):
         query_tokend = NLP(reform_text(sample['question']))
@@ -163,7 +169,6 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict = {}
         fea_dict['uid'] = sample['uid']
         fea_dict['context'] = sample['context']
-        fea_dict['question'] = sample['question']
         fea_dict['query_tok'] = tok_func(query_tokend, vocab)
         fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
         fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
@@ -171,6 +176,9 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
         fea_dict['doc_pos'] = postag_func(doc_tokend, vocab_tag)
         fea_dict['doc_ner'] = nertag_func(doc_tokend, vocab_ner)
         fea_dict['doc_fea'] = '{}'.format(match_func(query_tokend, doc_tokend))  # json don't support float
+        # convert sentence to elmo input
+        fea_dict['doc_char_ids'] = charids_func(doc_tokend)
+        fea_dict['query_char_ids'] = charids_func(query_tokend)
         doc_toks = [t.text for t in doc_tokend]
         start, end, span = build_span(sample['context'], sample['answer'], doc_toks, sample['answer_start'],
                                       sample['answer_end'], is_train=is_train)
