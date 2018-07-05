@@ -20,7 +20,7 @@ def load_meta(opt, meta_path):
 
 class BatchGen:
     """A class to hold the information needed for a training batch"""
-    def __init__(self, data_path, batch_size, gpu, is_train=True, doc_maxlen=1000):
+    def __init__(self, data_path, batch_size, gpu, is_train=True, doc_maxlen=1000, elmo_on=False):
         self.batch_size = batch_size
         self.doc_maxlen = doc_maxlen
         self.is_train = is_train
@@ -35,6 +35,7 @@ class BatchGen:
         data = [self.data[i:i + batch_size] for i in range(0, len(self.data), batch_size)]
         self.data = data
         self.offset = 0
+        self.elmo_on = elmo_on
 
     def load(self, path, is_train=True, doc_maxlen=1000):
         with open(path, 'r', encoding='utf-8') as reader:
@@ -80,26 +81,31 @@ class BatchGen:
             doc_tag = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_ent = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_feature = torch.Tensor(batch_size, doc_len, feature_len).fill_(0)
-            doc_char_ids = torch.LongTensor(batch_size, doc_len, char_ids_length).fill_(0)
+
+            # elmo
+            if self.elmo_on:
+                doc_char_ids = torch.LongTensor(batch_size, doc_len, char_ids_length).fill_(0)
+                query_char_ids = torch.LongTensor(batch_size, query_len, char_ids_length).fill_(0)
 
             for i, sample in enumerate(batch):
                 select_len = min(len(sample['doc_tok']), doc_len)
                 doc_id[i, :select_len] = torch.LongTensor(sample['doc_tok'][:select_len])
                 doc_tag[i, :select_len] = torch.LongTensor(sample['doc_pos'][:select_len])
                 doc_ent[i, :select_len] = torch.LongTensor(sample['doc_ner'][:select_len])
-                for j, char_ids in enumerate(sample['doc_char_ids']):
-                    doc_char_ids[i, j, :] = torch.LongTensor(char_ids)
+                if self.elmo_on:
+                    for j, char_ids in enumerate(sample['doc_char_ids']):
+                        doc_char_ids[i, j, :] = torch.LongTensor(char_ids)
                 for j, feature in enumerate(eval(sample['doc_fea'])):
                     doc_feature[i, j, :] = torch.Tensor(feature)
 
             query_len = max(len(x['query_tok']) for x in batch)
             query_id = torch.LongTensor(batch_size, query_len).fill_(0)
-            query_char_ids = torch.LongTensor(batch_size, query_len, char_ids_length).fill_(0)
             for i, sample in enumerate(batch):
                 select_len = min(len(sample['query_tok']), query_len)
                 query_id[i, :len(sample['query_tok'])] = torch.LongTensor(sample['query_tok'][:select_len])
-                for j, char_ids in enumerate(sample['query_char_ids']):
-                    query_char_ids[i, j, :] = torch.LongTensor(char_ids)
+                if self.elmo_on:
+                    for j, char_ids in enumerate(sample['query_char_ids']):
+                        query_char_ids[i, j, :] = torch.LongTensor(char_ids)
 
             # both masks have the same shape as their _id's.
             doc_mask = torch.eq(doc_id, 0)
@@ -112,8 +118,9 @@ class BatchGen:
             batch_dict['query_tok'] = query_id
             batch_dict['doc_mask'] = doc_mask
             batch_dict['query_mask'] = query_mask
-            batch_dict['doc_char_ids'] = doc_char_ids
-            batch_dict['query_char_ids'] = query_char_ids
+            if self.elmo_on:
+                batch_dict['doc_char_ids'] = doc_char_ids
+                batch_dict['query_char_ids'] = query_char_ids
 
             if self.is_train:
                 start = [sample['start'] for sample in batch]
