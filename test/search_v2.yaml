@@ -1,0 +1,20 @@
+description: Hyperparam SAN Test
+
+auth:
+  vc: VC_NAME
+  cluster: CLUSTER_NAME
+  docker_repo: philly/jobs/test/pytorch
+  docker_tag: pytorch0.4.0-py36-msgpack
+
+code:
+  code_upload: True
+  local_dir: ./
+
+data:
+  data_upload: False
+
+jobs:
+  - name: squadv2.san.elmo
+    n_gpu: 1
+    args: "--data_dir /hdfs/VC_NAME/yuwfan/data/ --train_data train_data_v2_elmo.json --dev_data dev_data_v2_elmo.json --elmo_options_file elmo_2x1024_128_2048cnn_1xhighway_options.json --elmo_weights_file elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5 --philly_on --classifier_threshold 0.5 --classifier_merge_opt 0 --classifier_gamma 1 --batch_size 32 --classifier_threshold 0.1 --classifier_merge_opt 0 --classifier_gamma 0.2 --elmo_on"
+    entry_point: train_v2.py

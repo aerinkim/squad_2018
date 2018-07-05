@@ -5,6 +5,7 @@ __pycache__/
 .git/
 *.txt
 data*
+checkpoint*
 *sh
 *prepro*
 run_phillytools_*

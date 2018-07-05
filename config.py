@@ -15,7 +15,6 @@ def model_config(parser):
 
     # elmo
     parser.add_argument('--elmo_on', action='store_true')
-    parser.add_argument('--elmo_output_type', type=str, default='single', help="single/all")
 
     # pos
     parser.add_argument('--no_pos', dest='pos_on', action='store_false')
@@ -173,8 +172,8 @@ def train_config(parser):
     base_dir=os.getenv('PT_OUTPUT_DIR', 'model_data')
     parser.add_argument('--gpu', default=0, type=int, help='Use for philly tools. I don\'t know wtf it is.')
     parser.add_argument('--dataDir', default=None, type=str, help='Use for philly tools. Not used now.')
-    parser.add_argument('--modelDir', default=None, type=str, help='Use for philly tools. Will replace model_dir if exists.')
-    parser.add_argument('--logDir',default=None, type=str, help='Use for philly tools. Will replace log_file location if exists.')
+    parser.add_argument('--modelDir', default='checkpoint', type=str, help='Use for philly tools. Will replace model_dir if exists.')
+    parser.add_argument('--logDir',default='.', type=str, help='Use for philly tools. Will replace log_file location if exists.')
     return parser
 
 def set_args():
@@ -183,4 +182,5 @@ def set_args():
     parser = model_config(parser)
     parser = train_config(parser)
     args = parser.parse_args()
+    args.model_dir = args.modelDir
     return args
