@@ -72,6 +72,7 @@ class BatchGen:
             batch_dict = {}
             # maximum length for padding. "doc_" prefix means context.
             doc_len = max(len(x['doc_tok']) for x in batch)
+            query_len = max(len(x['query_tok']) for x in batch)
             # feature vector
             feature_len = len(eval(batch[0]['doc_fea'])[0]) if len(batch[0].get('doc_fea', [])) > 0 else 0
             char_ids_length = len(batch[0].get('doc_char_ids')[0])
@@ -98,7 +99,6 @@ class BatchGen:
                 for j, feature in enumerate(eval(sample['doc_fea'])):
                     doc_feature[i, j, :] = torch.Tensor(feature)
 
-            query_len = max(len(x['query_tok']) for x in batch)
             query_id = torch.LongTensor(batch_size, query_len).fill_(0)
             for i, sample in enumerate(batch):
                 select_len = min(len(sample['query_tok']), query_len)

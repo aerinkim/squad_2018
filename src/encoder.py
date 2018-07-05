@@ -123,7 +123,12 @@ class LexiconEncoder(nn.Module):
         return v
 
     def get_elmo_emb(self, char_ids):
-        sent_elmo = self.elmo(self.patch(char_ids))
+        if self.opt['cuda']:
+            char_ids = Variable(char_ids.cuda(async=True), requires_grad=False)
+        else:
+            char_ids = Variable(char_ids, requires_grad=False)
+
+        sent_elmo = self.elmo(char_ids)
         # get last layer
         if self.elmo_output_type == 0:
             sent_elmo_emb = sent_elmo['elmo_representations'][-1]

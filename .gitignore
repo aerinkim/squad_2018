@@ -4,7 +4,6 @@
 data/
 *.tar.gz
 *.egg-info
-checkpoint*
 data/*
 *log
 pred_out/*
