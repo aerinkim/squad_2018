@@ -10,6 +10,7 @@ from .dropout_wrapper import DropoutWrapper
 from .common import activation
 from .similarity import AttentionWrapper
 from .sub_layers import PositionwiseNN
+from allennlp.modules.elmo import Elmo
 
 class LexiconEncoder(nn.Module):
     def create_embed(self, vocab_size, embed_dim, padding_idx=0):
@@ -45,12 +46,30 @@ class LexiconEncoder(nn.Module):
         self.ner_embedding = self.create_embed(vocab_size, embed_dim)
         return embed_dim
 
+    def create_elmo_embed(self, opt={}, prefix='elmo'):
+        # TODO
+        options_file = os.path.join(opt['data_dir'], opt.get('{}_options_file'.format(prefix)))
+        weights_file = os.path.join(opt['data_dir'], opt.get('{}_weights_file'.format(prefix)))
+        self.elmo = Elmo(options_file, weights_file, 2, dropout=0)
+
+        assert opt['elmo_output_type'] == "single" or opt['elmo_output_type'] == "all"
+
+        self.elmo_output_dim = self.elmo.get_output_dim()
+        self.elmo_output_type = 0
+        if opt['elmo_output_type'] == 'all':
+            self.elmo_output_type = 1
+            self.elmo_output_dim *= 2
+
+        return self.elmo_output_dim
+
+
     def create_cove(self, vocab_size, embedding=None, embed_dim=300, padding_idx=0, opt=None):
         self.ContextualEmbed= ContextualEmbed(os.path.join(opt['data_dir'], opt['covec_path']), opt['vocab_size'], embedding=embedding, padding_idx=padding_idx)
         return self.ContextualEmbed.output_size
 
     def create_prealign(self, x1_dim, x2_dim, opt={}, prefix='prealign'):
         self.prealign = AttentionWrapper(x1_dim, x2_dim, prefix, opt, self.dropout)
+
 
     def __init__(self, opt, pwnn_on=True, embedding=None, padding_idx=0, dropout=None):
         super(LexiconEncoder, self).__init__()
@@ -63,6 +82,9 @@ class LexiconEncoder(nn.Module):
         self.embedding_dim = embedding_dim
         doc_input_size += embedding_dim
         que_input_size += embedding_dim
+
+        # elmo
+        elmo_size = self.create_elmo_embed(opt=opt) if opt['elmo_on'] else 0
 
         # pre-trained contextual vector
         covec_size = self.create_cove(opt['vocab_size'], embedding, opt=opt) if opt['covec_on'] else 0
@@ -77,8 +99,8 @@ class LexiconEncoder(nn.Module):
         ner_size = self.create_ner_embed(opt) if opt['ner_on'] else 0
         feat_size = opt['num_features'] if opt['feat_on'] else 0
         print(feat_size)
-        doc_hidden_size = embedding_dim + covec_size + prealign_size + pos_size + ner_size + feat_size
-        que_hidden_size = embedding_dim + covec_size
+        doc_hidden_size = embedding_dim + covec_size + prealign_size + pos_size + ner_size + feat_size + elmo_size
+        que_hidden_size = embedding_dim + covec_size + elmo_size
         if opt['prealign_bidi']:
             que_hidden_size += prealign_size
         self.pwnn_on = pwnn_on
@@ -99,6 +121,16 @@ class LexiconEncoder(nn.Module):
         else:
             v = Variable(v)
         return v
+
+    def get_elmo_emb(self, char_ids):
+        sent_elmo = self.elmo(self.patch(char_ids))
+        # get last layer
+        if self.elmo_output_type == 0:
+            sent_elmo_emb = sent_elmo['elmo_representations'][-1]
+        else:
+            sent_elmo_emb = torch.cat(sent_elmo['elmo_representations'], dim=2)
+
+        return sent_elmo_emb
 
     def forward(self, batch):
         drnn_input_list = []
@@ -128,6 +160,13 @@ class LexiconEncoder(nn.Module):
             query_cove_high = self.dropout(query_cove_high)
             drnn_input_list.append(doc_cove_low)
             qrnn_input_list.append(query_cove_low)
+
+        # elmo
+        if self.opt['elmo_on']:
+            doc_elmo_emb = self.get_elmo_emb(batch['doc_char_ids'])
+            query_elmo_emb = self.get_elmo_emb(batch['query_char_ids'])
+            drnn_input_list.append(doc_elmo_emb)
+            qrnn_input_list.append(query_elmo_emb)
 
         if self.opt['prealign_on']:
             q2d_atten = self.prealign(doc_emb, query_emb, query_mask)

@@ -13,6 +13,10 @@ def model_config(parser):
     parser.add_argument('--embedding_dim', type=int, default=300)
     parser.add_argument('--philly_on', action='store_true')
 
+    # elmo
+    parser.add_argument('--elmo_on', action='store_true')
+    parser.add_argument('--elmo_output_type', type=str, default='single', help="single/all")
+
     # pos
     parser.add_argument('--no_pos', dest='pos_on', action='store_false')
     parser.add_argument('--pos_vocab_size', type=int, default=56)
@@ -126,6 +130,10 @@ def data_config(parser):
                              'Otherwise consider question words first.')
     parser.add_argument('--threads', type=int, default=multiprocessing.cpu_count(),
                         help='number of threads for preprocessing.')
+
+    # elmo config
+    parser.add_argument('--elmo_options_file', default='elmo_2x1024_128_2048cnn_1xhighway_options.json')
+    parser.add_argument('--elmo_weights_file', default='elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5')
     return parser
 
 def train_config(parser):
