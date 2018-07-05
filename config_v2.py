@@ -9,7 +9,8 @@ Configuration file
 def model_config(parser):
     parser.add_argument('--vocab_size', type=int, default=0)
     parser.add_argument('--wemb_dim', type=int, default=300)
-    parser.add_argument('--covec_on', action='store_false', help = "pre-trained 600-dimensional CoVe vectors (McCann et al., 2017)")
+    parser.add_argument('--covec_on', action='store_false', 
+                        help = "pre-trained 600-dimensional CoVe vectors (McCann et al., 2017)")
     parser.add_argument('--embedding_dim', type=int, default=300)
     parser.add_argument('--philly_on', action='store_true')
 
@@ -26,7 +27,8 @@ def model_config(parser):
     # q -> p (Word embedding of the passage. Enhanced by questions.)
     # We measure the similarity in word embedding space between a token in passage
     # and a token in the question using the dot product.
-    parser.add_argument('--prealign_on', action='store_false', help = "we enhance the word embedding of the passage by using questions.")
+    parser.add_argument('--prealign_on', action='store_false', 
+                        help = "we enhance the word embedding of the passage by using questions.")
     parser.add_argument('--prealign_head', type=int, default=1)
     parser.add_argument('--prealign_att_dropout', type=float, default=0)
     parser.add_argument('--prealign_norm_on', action='store_true')
@@ -48,7 +50,8 @@ def model_config(parser):
     parser.add_argument('--contextual_weight_norm_on', action='store_true')
     parser.add_argument('--contextual_maxout_on', action='store_true')
     parser.add_argument('--contextual_residual_on', action='store_true')
-    parser.add_argument('--contextual_encoder_share', action='store_true')
+    parser.add_argument('--contextual_encoder_share', action='store_true', 
+                        help = "If true, encoded query and encoded passage will be the same biLSTM.")
     parser.add_argument('--contextual_num_layers', type=int, default=2)
 
     ## mem setting

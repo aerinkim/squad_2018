@@ -53,13 +53,8 @@ class DNetwork(nn.Module):
         
         # 3rd layer: Memory Genration.
         # Derive a question-aware passage representation using an attention mechanism.
-        self.query_understand = OneLayerBRNN(query_hidden_size, opt['msum_hidden_size'], 
-                                            prefix='msum', opt=opt, dropout=my_dropout)
-        self.doc_understand = OneLayerBRNN(doc_und_size, opt['msum_hidden_size'], 
-                                            prefix='msum', opt=opt, dropout=my_dropout)
-        query_mem_hidden_size = self.query_understand.output_size
-        doc_mem_hidden_size = self.doc_understand.output_size
-        
+        self.query_understand = OneLayerBRNN(query_hidden_size, opt['msum_hidden_size'],
+                                             prefix='msum', opt=opt, dropout=my_dropout)
         doc_attn_size = doc_hidden_size + covec_size + embedding_size
         query_attn_size = query_hidden_size + covec_size + embedding_size
         num_layers = 3
@@ -68,6 +63,10 @@ class DNetwork(nn.Module):
         self.deep_attn = DeepAttentionWrapper(doc_attn_size, query_attn_size, num_layers, prefix, opt, my_dropout)
 
         doc_und_size = doc_hidden_size + query_hidden_size + self.query_understand.output_size
+        self.doc_understand = OneLayerBRNN(doc_und_size, opt['msum_hidden_size'], 
+                                            prefix='msum', opt=opt, dropout=my_dropout)
+        query_mem_hidden_size = self.query_understand.output_size
+        doc_mem_hidden_size = self.doc_understand.output_size
 
         if opt['self_attention_on']:
             att_size = embedding_size + covec_size + doc_hidden_size + query_hidden_size + self.query_understand.output_size + self.doc_understand.output_size
@@ -122,9 +121,9 @@ class DNetwork(nn.Module):
         doc_attn_hiddens = self.dropout(doc_attn_hiddens)
         
         doc_mem_hiddens = self.doc_understand(torch.cat([doc_attn_hiddens] + doc_list, 2), doc_mask)
-        doc_mem_hiddens = self.dropout(doc_mem_hiddens)
-        
+        doc_mem_hiddens = self.dropout(doc_mem_hiddens) 
         doc_mem_inputs = torch.cat([doc_attn_hiddens] + doc_list, 2)
+        
         if self.opt['self_attention_on']:
             doc_att = torch.cat([doc_mem_inputs, doc_mem_hiddens, doc_cove_high, doc_emb], 2)
             doc_self_hiddens = self.doc_self_attn(doc_att, doc_att, doc_mask, x3=doc_mem_hiddens)
