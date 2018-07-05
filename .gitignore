@@ -13,3 +13,11 @@ nohup*
 *.pyproj
 *.sln
 launch_docker
+*pyc
+prepro*
+model_data*
+*log
+temp.yaml
+hyp_tune*
+run_phillytools_v2*
+v2

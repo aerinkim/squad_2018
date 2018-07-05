@@ -303,4 +303,5 @@ def evaluate(dataset, preds, na_prob_thresh):
         no_ans_eval = make_eval_dict(exact_thresh, f1_thresh, qid_list=no_ans_qids)
         merge_eval(out_eval, no_ans_eval, 'NoAns')
     find_all_best_thresh(out_eval, preds, exact_raw, f1_raw, na_probs, qid_to_has_ans)
+    print(out_eval)
     return {'exact_match': out_eval['best_exact'], 'f1': out_eval['best_f1']}

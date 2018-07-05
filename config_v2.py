@@ -1,4 +1,5 @@
 #/usr/bin/env python3
+import os
 import argparse
 import multiprocessing
 import torch
@@ -10,6 +11,7 @@ def model_config(parser):
     parser.add_argument('--wemb_dim', type=int, default=300)
     parser.add_argument('--covec_on', action='store_false')
     parser.add_argument('--embedding_dim', type=int, default=300)
+    parser.add_argument('--philly_on', action='store_true')
 
     # elmo
     parser.add_argument('--elmo_on', action='store_true')
@@ -102,6 +104,15 @@ def model_config(parser):
     parser.add_argument('--decoder_sum_att_type', type=str, default='bilinear',
                         help='bilinear/simple/defualt')
     parser.add_argument('--decoder_weight_norm_on', action='store_true')
+
+    # extra loss
+    parser.add_argument('--classifier_merge_opt', type=int, default=0)
+    parser.add_argument('--classifier_dropout_p', type=float, default=0.4)
+    parser.add_argument('--classifier_weight_norm_on', action='store_false')
+    parser.add_argument('--classifier_gamma', type=float, default=1)
+    parser.add_argument('--classifier_threshold', type=float, default=0.5)
+    parser.add_argument('--label_size', type=int, default=1)
+
     return parser
 
 def data_config(parser):
@@ -115,7 +126,7 @@ def data_config(parser):
     # parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
     parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
                         help='path to preprocessed validation data file.')
-    parser.add_argument('--covec_path', default='data/MT-LSTM.pt')
+    parser.add_argument('--covec_path', default='MT-LSTM.pt')
     parser.add_argument('--glove', default='data/glove.840B.300d.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
@@ -132,6 +143,7 @@ def data_config(parser):
     return parser
 
 def train_config(parser):
+    parser.add_argument('--extra_loss', dest='extra_loss_on', action='store_false')
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available(), 
                         help='whether to use GPU acceleration.')
     parser.add_argument('--log_per_updates', type=int, default=50)
@@ -164,6 +176,12 @@ def train_config(parser):
     parser.add_argument('--model_dir', default='checkpoint')
     parser.add_argument('--seed', type=int, default=2013,
                         help='random seed for data shuffling, embedding init, etc.')
+    base_dir=os.getenv('PT_OUTPUT_DIR', 'model_data')
+    parser.add_argument('--gpu', default=0, type=int, help='Use for philly tools. I don\'t know wtf it is.')
+    parser.add_argument('--dataDir', default=None, type=str, help='Use for philly tools. Not used now.')
+    parser.add_argument('--modelDir', default=None, type=str, help='Use for philly tools. Will replace model_dir if exists.')
+    parser.add_argument('--logDir',default=None, type=str, help='Use for philly tools. Will replace log_file location if exists.')
+
     return parser
 
 def set_args():

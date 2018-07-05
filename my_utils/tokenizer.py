@@ -1,6 +1,5 @@
 import re
 import warnings
-import spacy
 import tqdm
 import logging
 import unicodedata
@@ -8,8 +7,10 @@ from collections import Counter
 from functools import partial
 from multiprocessing import Pool as ThreadPool
 
+
 logger = logging.getLogger(__name__)
 
+DUMMY = 'DUMMMMMY'
 PAD = '<PAD>'
 UNK = '<UNK>'
 STA= '<BOS>'

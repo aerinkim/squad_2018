@@ -8,7 +8,6 @@ import argparse
 import json
 import torch
 import msgpack
-import pandas as pd
 import numpy as np
 from shutil import copyfile
 from datetime import datetime
@@ -71,6 +70,7 @@ def main():
 
     best_em_score, best_f1_score = 0.0, 0.0
 
+    print("PROGRESS: 00.00%")
     for epoch in range(0, args.epoches):
         logger.warning('At epoch {}'.format(epoch))
         train_data.reset()
@@ -96,12 +96,14 @@ def main():
                 model.scheduler.step()
         # save
         model_file = os.path.join(model_dir, 'checkpoint_epoch_{}.pt'.format(epoch))
-        model.save(model_file, epoch)
+        if not args.philly_on:
+            model.save(model_file)
         if em + f1 > best_em_score + best_f1_score:
             copyfile(os.path.join(model_dir, model_file), os.path.join(model_dir, 'best_checkpoint.pt'))
             best_em_score, best_f1_score = em, f1
             logger.info('Saved the new best model and prediction')
         logger.warning("Epoch {0} - dev EM: {1:.3f} F1: {2:.3f} (best EM: {3:.3f} F1: {4:.3f})".format(epoch, em, f1, best_em_score, best_f1_score))
+        print("PROGRESS: {0:.2f}%".format(100.0 * (epoch + 1) / args.epoches - 1.0))
 
 if __name__ == '__main__':
     main()
