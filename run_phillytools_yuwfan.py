@@ -13,4 +13,4 @@ with open('test/search.yaml') as f:
         
     output_file.close()
 input('check file')
-os.system('pt run test/temp.yaml ../model_data/run_pht_%s' % (cluster))
+os.system('pt run test/temp.yaml model_data/run_pht_%s_squad_v1' % (cluster))

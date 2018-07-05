@@ -1,8 +1,8 @@
 description: Hyperparam SAN Test
 
 auth:
-  vc: pnrsy
-  cluster: rr1
+  vc: VC_NAME
+  cluster: CLUSTER_NAME
   docker_repo: philly/jobs/test/pytorch
   docker_tag: pytorch0.4.0-py36-msgpack
 
@@ -14,7 +14,11 @@ data:
   data_upload: False
 
 jobs:
-  - name: san.elmo
+  - name: squad.v1.san.elmo.off
     n_gpu: 1
-    args: "--covec_path /hdfs/pnrsy/yuwfan/data/MT-LSTM.pt --data_dir /hdfs/pnrsy/yuwfan/data/ --train_data train_data_v1_elmo.json --dev_data dev_data_v1_elmo.json --elmo_options_file elmo_2x1024_128_2048cnn_1xhighway_options.json --elmo_weights_file elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5 --elmo_on"
+    args: "--data_dir /hdfs/VC_NAME/yuwfan/data/ --train_data train_data_v1_elmo.json --dev_data dev_data_v1_elmo.json --log_file squad.v1.san.elmo.off --philly_on"
+    entry_point: train.py
+  - name: squad.v1.san.elmo
+    n_gpu: 1
+    args: "--data_dir /hdfs/VC_NAME/yuwfan/data/ --train_data train_data_v1_elmo.json --dev_data dev_data_v1_elmo.json --elmo_on --elmo_options_file elmo_2x1024_128_2048cnn_1xhighway_options.json --elmo_weights_file elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5 --log_file squad.v1.san.elmo --philly_on"
     entry_point: train.py
