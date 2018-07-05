@@ -26,6 +26,7 @@ class DotProduct(nn.Module):
 
 
 class DotProductProject(nn.Module):
+    """ Dot-Prod attention while projecting the input layers """
     def __init__(self, x1_dim, x2_dim, prefix='sim', opt={}, dropout=None):
         super(DotProductProject, self).__init__()
         self.prefix = prefix

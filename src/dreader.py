@@ -17,32 +17,49 @@ class DNetwork(nn.Module):
         super(DNetwork, self).__init__()
         my_dropout = DropoutWrapper(opt['dropout_p'], opt['vb_dropout'])
         self.dropout = my_dropout
-
+        # 1st layer : Lexicon Encoding.
         self.lexicon_encoder = LexiconEncoder(opt, embedding=embedding, dropout=my_dropout)
         query_input_size = self.lexicon_encoder.query_input_size
         doc_input_size = self.lexicon_encoder.doc_input_size
-
         print('Lexicon encoding size for query and doc are:{}', doc_input_size, query_input_size)
         covec_size = self.lexicon_encoder.covec_size
         embedding_size = self.lexicon_encoder.embedding_dim
+        # 2nd layer : Contextual Encoding.
+        # The input of the contextual encoding layer : the concatenation of Cove and previous lexicon embedding (doc_input & query_input)
         # share net
         contextual_share = opt.get('contextual_encoder_share', False)
         prefix = 'contextual'
-        prefix = 'contextual'
         # doc_hidden_size
-        self.doc_encoder_low = OneLayerBRNN(doc_input_size + covec_size, opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
-        self.doc_encoder_high = OneLayerBRNN(self.doc_encoder_low.output_size + covec_size, opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
+        self.doc_encoder_low = OneLayerBRNN(doc_input_size + covec_size, 
+                                            opt['contextual_hidden_size'], 
+                                            prefix=prefix, opt=opt, dropout=my_dropout)
+        self.doc_encoder_high = OneLayerBRNN(self.doc_encoder_low.output_size + covec_size, 
+                                            opt['contextual_hidden_size'], 
+                                            prefix=prefix, opt=opt, dropout=my_dropout)
+        
         if contextual_share:
             self.query_encoder_low = self.doc_encoder_low
             self.query_encoder_high = self.doc_encoder_high
         else:
-            self.query_encoder_low = OneLayerBRNN(query_input_size + covec_size, opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
-            self.query_encoder_high = OneLayerBRNN(self.query_encoder_low.output_size + covec_size, opt['contextual_hidden_size'], prefix=prefix, opt=opt, dropout=my_dropout)
+            self.query_encoder_low = OneLayerBRNN(query_input_size + covec_size, 
+                                                  opt['contextual_hidden_size'], 
+                                                  prefix=prefix, opt=opt, dropout=my_dropout)
+            self.query_encoder_high = OneLayerBRNN(self.query_encoder_low.output_size + covec_size, 
+                                                  opt['contextual_hidden_size'], 
+                                                  prefix=prefix, opt=opt, dropout=my_dropout)
 
         doc_hidden_size = self.doc_encoder_low.output_size + self.doc_encoder_high.output_size
         query_hidden_size = self.query_encoder_low.output_size + self.query_encoder_high.output_size
-
-        self.query_understand = OneLayerBRNN(query_hidden_size, opt['msum_hidden_size'], prefix='msum', opt=opt, dropout=my_dropout)
+        
+        # 3rd layer: Memory Genration.
+        # Derive a question-aware passage representation using an attention mechanism.
+        self.query_understand = OneLayerBRNN(query_hidden_size, opt['msum_hidden_size'], 
+                                            prefix='msum', opt=opt, dropout=my_dropout)
+        self.doc_understand = OneLayerBRNN(doc_und_size, opt['msum_hidden_size'], 
+                                            prefix='msum', opt=opt, dropout=my_dropout)
+        query_mem_hidden_size = self.query_understand.output_size
+        doc_mem_hidden_size = self.doc_understand.output_size
+        
         doc_attn_size = doc_hidden_size + covec_size + embedding_size
         query_attn_size = query_hidden_size + covec_size + embedding_size
         num_layers = 3
@@ -51,9 +68,6 @@ class DNetwork(nn.Module):
         self.deep_attn = DeepAttentionWrapper(doc_attn_size, query_attn_size, num_layers, prefix, opt, my_dropout)
 
         doc_und_size = doc_hidden_size + query_hidden_size + self.query_understand.output_size
-        self.doc_understand = OneLayerBRNN(doc_und_size, opt['msum_hidden_size'], prefix='msum', opt=opt, dropout=my_dropout)
-        query_mem_hidden_size = self.query_understand.output_size
-        doc_mem_hidden_size = self.doc_understand.output_size
 
         if opt['self_attention_on']:
             att_size = embedding_size + covec_size + doc_hidden_size + query_hidden_size + self.query_understand.output_size + self.doc_understand.output_size
@@ -71,6 +85,7 @@ class DNetwork(nn.Module):
         self.opt = opt
 
     def forward(self, batch):
+        # 1st layer : Lexicon Encoding.
         doc_input, query_input,\
         doc_emb, query_emb,\
         doc_cove_low, doc_cove_high,\
@@ -81,6 +96,7 @@ class DNetwork(nn.Module):
         query_list.append(query_input)
         doc_list.append(doc_input)
 
+        # 2nd layer : Contextual Encoding.
         # doc encode
         doc_low = self.doc_encoder_low(torch.cat([doc_input, doc_cove_low], 2), doc_mask)
         doc_low = self.dropout(doc_low)
@@ -92,17 +108,22 @@ class DNetwork(nn.Module):
         query_high = self.query_encoder_high(torch.cat([query_low, query_cove_high], 2), query_mask)
         query_high = self.dropout(query_high)
 
+        # 3rd layer: Memory Genration.
         query_mem_hiddens = self.query_understand(torch.cat([query_low, query_high], 2), query_mask)
         query_mem_hiddens = self.dropout(query_mem_hiddens)
+
         query_list = [query_low, query_high, query_mem_hiddens]
         doc_list = [doc_low, doc_high]
 
         query_att_input = torch.cat([query_emb, query_cove_high, query_low, query_high], 2)
         doc_att_input = torch.cat([doc_emb, doc_cove_high] + doc_list, 2)
+        
         doc_attn_hiddens = self.deep_attn(doc_att_input, query_att_input, query_list, query_mask)
         doc_attn_hiddens = self.dropout(doc_attn_hiddens)
+        
         doc_mem_hiddens = self.doc_understand(torch.cat([doc_attn_hiddens] + doc_list, 2), doc_mask)
         doc_mem_hiddens = self.dropout(doc_mem_hiddens)
+        
         doc_mem_inputs = torch.cat([doc_attn_hiddens] + doc_list, 2)
         if self.opt['self_attention_on']:
             doc_att = torch.cat([doc_mem_inputs, doc_mem_hiddens, doc_cove_high, doc_emb], 2)

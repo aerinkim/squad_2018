@@ -12,6 +12,10 @@ from .similarity import AttentionWrapper
 from .sub_layers import PositionwiseNN
 
 class LexiconEncoder(nn.Module):
+    """
+    Each token p_i in the passasge is represented as a 600-dimensional vector
+    and each token q_i is represented as 300-dimensional vector.
+    """
     def create_embed(self, vocab_size, embed_dim, padding_idx=0):
         return nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx)
 
@@ -84,6 +88,7 @@ class LexiconEncoder(nn.Module):
         self.pwnn_on = pwnn_on
         self.opt = opt
         if self.pwnn_on:
+            # To map both passage and question lexical encodings into the same dimension.
             self.doc_pwnn = PositionwiseNN(doc_hidden_size, opt['pwnn_hidden_size'], dropout)
             if doc_hidden_size == que_hidden_size:
                 self.que_pwnn = self.doc_pwnn
@@ -101,6 +106,10 @@ class LexiconEncoder(nn.Module):
         return v
 
     def forward(self, batch):
+        """
+        We obtain lexicon embedding by concatenating word embedding with POS, NER, 
+        exact match, and pre-align (word embedding of the passage. Enhanced by questions.)
+        """
         drnn_input_list = []
         qrnn_input_list = []
         emb = self.embedding if self.training else self.eval_embed

@@ -59,7 +59,7 @@ class Highway(nn.Module):
             G and Q is affine transformation,
             f is non-linear transformation, σ(x) is affine transformation with sigmoid non-linearition
             and * is element-wise multiplication
-            """
+        """
         for layer in range(self.num_layers):
             gate = F.sigmoid(self.gate[layer](x))
             nonlinear = self.f(self.nonlinear[layer](x))

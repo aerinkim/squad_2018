@@ -20,6 +20,7 @@ class OneLayerBRNN(nn.Module):
         self.dropout = dropout
         self.output_size = hidden_size if self.maxout_on else hidden_size * 2
         self.hidden_size = hidden_size
+        # Forward and backward output concatenated on the last dimesion.
         self.rnn = RNN_MAP[self.cell_type](input_size, hidden_size, num_layers=1, bidirectional=True)
 
     def forward(self, x, x_mask):
@@ -27,6 +28,7 @@ class OneLayerBRNN(nn.Module):
         size = list(x.size())
         #x = self.dropout(x)
         rnn_output, h = self.rnn(x)
+        # To reduce the number of parameters, a maxout layer is applied on the output of BiLSTM.
         if self.maxout_on:
             rnn_output = rnn_output.view(size[0], size[1], self.hidden_size, 2).max(-1)[0]
         # Transpose back
