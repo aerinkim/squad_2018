@@ -18,3 +18,6 @@ run_phillytools_xdl.py
 prepro*
 model_data*
 *log
+v2
+run_phillytools_v2*
+

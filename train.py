@@ -70,6 +70,7 @@ def main():
 
     best_em_score, best_f1_score = 0.0, 0.0
 
+    print("PROGRESS: 00.00%")
     for epoch in range(0, args.epoches):
         logger.warning('At epoch {}'.format(epoch))
         train_data.reset()
@@ -103,6 +104,7 @@ def main():
             best_em_score, best_f1_score = em, f1
             logger.info('Saved the new best model and prediction')
         logger.warning("Epoch {0} - dev EM: {1:.3f} F1: {2:.3f} (best EM: {3:.3f} F1: {4:.3f})".format(epoch, em, f1, best_em_score, best_f1_score))
+        print("PROGRESS: {0:.2f}%".format(100.0 * (epoch + 1) / args.epoches))
 
 if __name__ == '__main__':
     main()
