@@ -53,10 +53,10 @@ def main():
     embedding, opt = load_meta(opt, os.path.join(args.data_dir, args.meta))
     train_data = BatchGen(os.path.join(args.data_dir, args.train_data),
                           batch_size=args.batch_size,
-                          gpu=args.cuda)
+                          gpu=args.cuda, elmo_on=args.elmo_on)
     dev_data = BatchGen(os.path.join(args.data_dir, args.dev_data),
                           batch_size=args.batch_size_eval,
-                          gpu=args.cuda, is_train=False)
+                          gpu=args.cuda, is_train=False, elmo_on=args.elmo_on)
     logger.info('#' * 20)
     logger.info(opt)
     logger.info('#' * 20)

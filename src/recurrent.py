@@ -58,8 +58,8 @@ class BRNNEncoder(nn.Module):
         if self.cell_type == 'lstm':
             h = h[0]
         shape = h.size()
-        h = h.view(self.num_layers, 2, shape[1], shape[3]).transpose(1,2).contiguous()
-        h = h.view(self.num_layers, shape[1], 2 * shape[3])
+        h = h.view(self.num_layers, 2, shape[1], shape[2]).transpose(1,2).contiguous()
+        h = h.view(self.num_layers, shape[1], 2 * shape[2])
         if self.top_layer_only:
             return h[-1]
         else:

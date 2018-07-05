@@ -93,16 +93,17 @@ class DocReaderModel(object):
         start, end, pred = self.network(batch)
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
+        
+        self.train_loss.update(loss.item(), len(start))
         if self.opt.get('extra_loss_on', False):
             loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
 
-        self.train_loss.update(loss.data[0], len(start))
         self.optimizer.zero_grad()
         
         # have all gradients computed automatically. 
         loss.backward()
         
-        torch.nn.utils.clip_grad_norm(self.network.parameters(),
+        torch.nn.utils.clip_grad_norm_(self.network.parameters(),
                                       self.opt['grad_clipping'])
         self.optimizer.step()
         self.updates += 1

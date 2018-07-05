@@ -8,7 +8,7 @@ data*
 checkpoint*
 *sh
 *prepro*
-run_phillytools_xdl.py
+run_phillytools_*
 .gitignore
 .ptignore
 *philly
@@ -19,5 +19,3 @@ prepro*
 model_data*
 *log
 v2
-run_phillytools_v2*
-

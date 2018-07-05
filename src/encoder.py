@@ -10,6 +10,7 @@ from .dropout_wrapper import DropoutWrapper
 from .common import activation
 from .similarity import AttentionWrapper
 from .sub_layers import PositionwiseNN
+from allennlp.modules.elmo import Elmo
 
 class LexiconEncoder(nn.Module):
     """
@@ -49,12 +50,24 @@ class LexiconEncoder(nn.Module):
         self.ner_embedding = self.create_embed(vocab_size, embed_dim)
         return embed_dim
 
+    def create_elmo_embed(self, opt={}, prefix='elmo'):
+        # TODO
+        options_file = os.path.join(opt['data_dir'], opt.get('{}_options_file'.format(prefix)))
+        weights_file = os.path.join(opt['data_dir'], opt.get('{}_weights_file'.format(prefix)))
+        self.elmo = Elmo(options_file, weights_file, 2, dropout=0)
+
+        self.elmo_output_dim = self.elmo.get_output_dim()
+
+        return self.elmo_output_dim
+
+
     def create_cove(self, vocab_size, embedding=None, embed_dim=300, padding_idx=0, opt=None):
         self.ContextualEmbed= ContextualEmbed(os.path.join(opt['data_dir'], opt['covec_path']), opt['vocab_size'], embedding=embedding, padding_idx=padding_idx)
         return self.ContextualEmbed.output_size
 
     def create_prealign(self, x1_dim, x2_dim, opt={}, prefix='prealign'):
         self.prealign = AttentionWrapper(x1_dim, x2_dim, prefix, opt, self.dropout)
+
 
     def __init__(self, opt, pwnn_on=True, embedding=None, padding_idx=0, dropout=None):
         super(LexiconEncoder, self).__init__()
@@ -67,6 +80,10 @@ class LexiconEncoder(nn.Module):
         self.embedding_dim = embedding_dim
         doc_input_size += embedding_dim
         que_input_size += embedding_dim
+
+        # elmo
+        elmo_size = self.create_elmo_embed(opt=opt) if opt['elmo_on'] else 0
+        self.elmo_size = elmo_size
 
         # pre-trained contextual vector
         covec_size = self.create_cove(opt['vocab_size'], embedding, opt=opt) if opt['covec_on'] else 0
@@ -81,8 +98,8 @@ class LexiconEncoder(nn.Module):
         ner_size = self.create_ner_embed(opt) if opt['ner_on'] else 0
         feat_size = opt['num_features'] if opt['feat_on'] else 0
         print(feat_size)
-        doc_hidden_size = embedding_dim + covec_size + prealign_size + pos_size + ner_size + feat_size
-        que_hidden_size = embedding_dim + covec_size
+        doc_hidden_size = embedding_dim + covec_size + prealign_size + pos_size + ner_size + feat_size + elmo_size
+        que_hidden_size = embedding_dim + covec_size + elmo_size
         if opt['prealign_bidi']:
             que_hidden_size += prealign_size
         self.pwnn_on = pwnn_on
@@ -104,6 +121,16 @@ class LexiconEncoder(nn.Module):
         else:
             v = Variable(v)
         return v
+
+    def get_elmo_emb(self, char_ids):
+        if self.opt['cuda']:
+            char_ids = Variable(char_ids.cuda(async=True), requires_grad=False)
+        else:
+            char_ids = Variable(char_ids, requires_grad=False)
+
+        sent_elmo = self.elmo(char_ids)
+
+        return self.elmo(char_ids)['elmo_representations']
 
     def forward(self, batch):
         """
@@ -138,6 +165,20 @@ class LexiconEncoder(nn.Module):
             drnn_input_list.append(doc_cove_low)
             qrnn_input_list.append(query_cove_low)
 
+        # elmo
+        doc_elmo_low, doc_elmo_high = None, None
+        query_elmo_low, query_elmo_high = None, None
+        if self.opt['elmo_on']:
+            doc_elmo_low, doc_elmo_high = self.get_elmo_emb(batch['doc_char_ids'])
+            query_elmo_low, query_elmo_high = self.get_elmo_emb(batch['query_char_ids'])
+
+            doc_elmo_low = self.dropout(doc_elmo_low)
+            doc_elmo_high = self.dropout(doc_elmo_high)
+            query_elmo_low = self.dropout(query_elmo_low)
+            query_elmo_high = self.dropout(query_elmo_high)
+            drnn_input_list.append(doc_elmo_low)
+            qrnn_input_list.append(query_elmo_low)
+
         if self.opt['prealign_on']:
             q2d_atten = self.prealign(doc_emb, query_emb, query_mask)
             d2q_atten = self.prealign(query_emb, doc_emb, doc_mask)
@@ -168,4 +209,4 @@ class LexiconEncoder(nn.Module):
             query_input = self.que_pwnn(query_input)
         doc_input = self.dropout(doc_input)
         query_input = self.dropout(query_input)
-        return doc_input, query_input, doc_emb, query_emb, doc_cove_low, doc_cove_high, query_cove_low, query_cove_high, doc_mask, query_mask
+        return doc_input, query_input, doc_emb, query_emb, doc_cove_low, doc_cove_high, query_cove_low, query_cove_high, doc_elmo_low, doc_elmo_high, query_elmo_low, query_elmo_high, doc_mask, query_mask
