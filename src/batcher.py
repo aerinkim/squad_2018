@@ -108,10 +108,8 @@ class BatchGen:
             if self.is_train:
                 start = [sample['start'] for sample in batch]
                 end = [sample['end'] for sample in batch]
-                label = [sample['label'] for sample in batch]
                 batch_dict['start'] = torch.LongTensor(start)
                 batch_dict['end'] = torch.LongTensor(end)
-                batch_dict['label'] = torch.FloatTensor(label)
 
             if self.gpu:
                 for k, v in batch_dict.items():
