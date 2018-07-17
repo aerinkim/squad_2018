@@ -1,8 +1,8 @@
 import os
 
 
-cluster='gcr'
-vc='resrchvc'
+cluster='rr1'
+vc='pnrsy'
 
 with open('test/search.yaml') as f:
     output_file=open('test/temp.yaml','w')

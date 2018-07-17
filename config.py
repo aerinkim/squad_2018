@@ -1,4 +1,5 @@
 #/usr/bin/env python3
+import os
 import argparse
 import multiprocessing
 import torch
@@ -10,6 +11,7 @@ def model_config(parser):
     parser.add_argument('--wemb_dim', type=int, default=300)
     parser.add_argument('--covec_on', action='store_false', help = "pre-trained 600-dimensional CoVe vectors (McCann et al., 2017)")
     parser.add_argument('--embedding_dim', type=int, default=300)
+    parser.add_argument('--philly_on', action='store_true')
 
     # pos
     parser.add_argument('--no_pos', dest='pos_on', action='store_false')
@@ -20,7 +22,7 @@ def model_config(parser):
     parser.add_argument('--ner_dim', type=int, default=8)
     parser.add_argument('--no_feat', dest='feat_on', action='store_false')
     parser.add_argument('--num_features', type=int, default=4)
-    
+
     # q -> p (Word embedding of the passage. Enhanced by questions.)
     # We measure the similarity in word embedding space between a token in passage
     # and a token in the question using the dot product.
@@ -101,6 +103,9 @@ def model_config(parser):
     parser.add_argument('--decoder_sum_att_type', type=str, default='bilinear',
                         help='bilinear/simple/defualt')
     parser.add_argument('--decoder_weight_norm_on', action='store_false')
+    
+    parser.add_argument('--log_dir',default=None, type=str, help='Use for philly tools. Will replace log_file location if exists.')
+
     return parser
 
 def data_config(parser):
@@ -115,7 +120,7 @@ def data_config(parser):
     #parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
-    parser.add_argument('--glove', default='data/glove.6B.300d.txt',
+    parser.add_argument('--glove', default='data/glove.840B.300d.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
                         help='word vector dimension.')
@@ -127,6 +132,7 @@ def data_config(parser):
     return parser
 
 def train_config(parser):
+    parser.add_argument('--extra_loss', dest='extra_loss_on', action='store_true')
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available(),
                         help='whether to use GPU acceleration.')
     parser.add_argument('--log_per_updates', type=int, default=50)
@@ -159,6 +165,11 @@ def train_config(parser):
     parser.add_argument('--model_dir', default='checkpoint')
     parser.add_argument('--seed', type=int, default=2013,
                         help='random seed for data shuffling, embedding init, etc.')
+    base_dir=os.getenv('PT_OUTPUT_DIR', 'model_data')
+    parser.add_argument('--gpu', default=0, type=int, help='Use for philly tools. I don\'t know wtf it is.')
+    parser.add_argument('--dataDir', default=None, type=str, help='Use for philly tools. Not used now.')
+    parser.add_argument('--modelDir', default=None, type=str, help='Use for philly tools. Will replace model_dir if exists.')
+    parser.add_argument('--logDir',default=None, type=str, help='Use for philly tools. Will replace log_file location if exists.')
     return parser
 
 def set_args():
