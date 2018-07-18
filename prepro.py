@@ -7,7 +7,6 @@ import numpy as np
 import argparse
 import collections
 import multiprocessing
-import concurrent.futures as cc
 import logging
 import random
 import tqdm
@@ -38,40 +37,22 @@ def build_vocab(data, glove_vocab=None, sort_all=False, thread=8, clean_on=False
     #pool = ThreadPool(thread)
     if sort_all:
         counter = Counter()
-
-        logger.info("start updating 'context' counter")
         token_ = partial(token, key='context')
-        with cc.ThreadPoolExecutor(max_workers=thread) as e:
-            reses = [e.submit(token_, sample) for sample in tqdm.tqdm(data, total=len(data))]
-        for res in cc.as_completed(reses):
-            counter.update(res.result())
-
-        logger.info("start updating 'question' counter")
+        for sample in tqdm.tqdm(data, total=len(data)):
+            counter.update(token_(sample))
         token_ = partial(token, key='question')
-        with cc.ThreadPoolExecutor(max_workers=thread) as e:
-            reses = [e.submit(token_, sample) for sample in tqdm.tqdm(data, total=len(data))]
-        for res in cc.as_completed(reses):
-            counter.update(res.result())
-
+        for sample in tqdm.tqdm(data, total=len(data)):
+            counter.update(token_(sample))
         vocab = sorted([w for w in counter if w in glove_vocab], key=counter.get, reverse=True)
     else:
         query_counter = Counter()
         doc_counter = Counter()
-
-        logger.info("start updating 'context' counter")
         token_ = partial(token, key='context')
-        with cc.ThreadPoolExecutor(max_workers=thread) as e:
-            reses = [e.submit(token_, sample) for sample in tqdm.tqdm(data, total=len(data))]
-        for res in cc.as_completed(reses):
-            doc_counter.update(res.result())
-
-        logger.info("start updating 'question' counter")
+        for sample in tqdm.tqdm(data, total=len(data)):
+            doc_counter.update(token_(sample))
         token_ = partial(token, key='question')
-        with cc.ThreadPoolExecutor(max_workers=thread) as e:
-            reses = [e.submit(token_, sample) for sample in tqdm.tqdm(data, total=len(data))]
-        for res in cc.as_completed(reses):
-            query_counter.update(res.result())
-
+        for sample in tqdm.tqdm(data, total=len(data)):
+            query_counter.update(token_(sample))
         counter = query_counter + doc_counter
         # sort query words
         vocab = sorted([w for w in query_counter if w in glove_vocab], key=query_counter.get, reverse=True)
@@ -92,22 +73,17 @@ def load_data(path, is_train=True):
     for article in tqdm.tqdm(data, total=len(data)):
         for paragraph in article['paragraphs']:
             context = paragraph['context']
-
             for qa in paragraph['qas']:
                 uid, question = qa['id'], qa['question']
-                is_impossible = qa.get('is_impossible', False)
-                label = 0 if is_impossible else 1
                 answers = qa.get('answers', [])
                 if is_train:
                     if len(answers) < 1: continue
                     answer = answers[0]['text']
                     answer_start = answers[0]['answer_start']
                     answer_end = answer_start + len(answer)
-
-                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end, 'label': label}
+                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end}
                 else:
-                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answers, 'answer_start': -1, 'answer_end':-1, 'label': 0}
-
+                    sample = {'uid': uid, 'context': context, 'question': question, 'answer': answers, 'answer_start': -1, 'answer_end':-1}
                 rows.append(sample)
     return rows
 
@@ -158,46 +134,38 @@ def build_span(context, answer, context_token, answer_start, answer_end, is_trai
     else:
         return (t_start, t_end, t_span)
 
+def feature_func(sample, vocab, vocab_tag, vocab_ner, is_train=True):
+    query_tokend = NLP(reform_text(sample['question']))
+    doc_tokend = NLP(reform_text(sample['context']))
+    # features
+    fea_dict = {}
+    fea_dict['uid'] = sample['uid']
+    fea_dict['context'] = sample['context']
+    fea_dict['query_tok'] = tok_func(query_tokend, vocab)
+    fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
+    fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
+    fea_dict['doc_tok'] = tok_func(doc_tokend, vocab)
+    fea_dict['doc_pos'] = postag_func(doc_tokend, vocab_tag)
+    fea_dict['doc_ner'] = nertag_func(doc_tokend, vocab_ner)
+    fea_dict['doc_fea'] = '{}'.format(match_func(query_tokend, doc_tokend)) # json don't support float
+    doc_toks = [t.text for t in doc_tokend]
+    start, end, span = build_span(sample['context'], sample['answer'], doc_toks, sample['answer_start'], sample['answer_end'], is_train=is_train)
+    if is_train and (start == -1 or end == -1): return None
+    fea_dict['span'] = span
+    fea_dict['start'] = start
+    fea_dict['end'] = end
+    return fea_dict
 
-def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=8):
-    def feature_func(sample):
-        query_tokend = NLP(reform_text(sample['question']))
-        doc_tokend = NLP(reform_text(sample['context']))
-        # features
-        fea_dict = {}
-        fea_dict['uid'] = sample['uid']
-        fea_dict['context'] = sample['context']
-        fea_dict['is_impossible'] = sample['is_impossible']
-        fea_dict['query_tok'] = tok_func(query_tokend, vocab)
-        fea_dict['query_pos'] = postag_func(query_tokend, vocab_tag)
-        fea_dict['query_ner'] = nertag_func(query_tokend, vocab_ner)
-        fea_dict['doc_tok'] = tok_func(doc_tokend, vocab)
-        fea_dict['doc_pos'] = postag_func(doc_tokend, vocab_tag)
-        fea_dict['doc_ner'] = nertag_func(doc_tokend, vocab_ner)
-        fea_dict['doc_fea'] = '{}'.format(match_func(query_tokend, doc_tokend))  # json don't support float
-        doc_toks = [t.text for t in doc_tokend]
-        start, end, span = build_span(sample['context'], sample['answer'], doc_toks, sample['answer_start'],
-                                      sample['answer_end'], is_train=is_train)
-        if is_train and (start == -1 or end == -1): return None
-        fea_dict['span'] = span
-        fea_dict['start'] = start
-        fea_dict['end'] = end
-        return fea_dict
-
-    dropped_sample = 0
-    res_list = []
-    with cc.ThreadPoolExecutor(max_workers=thread) as e:
-        reses = [e.submit(feature_func, sample) for sample in tqdm.tqdm(data, total=len(data))]
-    for res in cc.as_completed(reses):
-        r = res.result()
-        if r is None:
-            dropped_sample += 1
-        else:
-            res_list.append(json.dumps(r))
+def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train):
     with open(fout, 'w', encoding='utf-8') as writer:
-        writer.write("\n".join(res_list))
-    logger.info('dropped {} in total {}'.format(dropped_sample, len(data)))
-
+        dropped_sample = 0
+        for sample in tqdm.tqdm(data, total=len(data)):
+            fd = feature_func(sample, vocab, vocab_tag, vocab_ner, is_train)
+            if fd is None:
+                dropped_sample += 1
+                continue
+            writer.write('{}\n'.format(json.dumps(fd)))
+        logger.info('dropped {} in total {}'.format(dropped_sample, len(data)))
 
 def main():
     args = set_args()
@@ -216,7 +184,6 @@ def main():
     logger.info('Loading glove vocab.')
     glove_vocab = load_glove_vocab(glove_path, glove_dim)
     # load data
-    logger.info('Loading data vocab.')
     train_data = load_data(train_path)
     valid_data = load_data(valid_path, False)
     vocab_tag = Vocabulary.build(nlp.tagger.tag_names, neat=True)
@@ -227,16 +194,12 @@ def main():
     logger.info('building embedding')
     embedding = build_embedding(glove_path, vocab, glove_dim)
     meta = {'vocab': vocab, 'vocab_tag': vocab_tag, 'vocab_ner': vocab_ner, 'embedding': embedding}
-    
-    # If you want to check vocab token IDs, etc., load the meta file below (squad_meta.pick).
     with open(meta_path, 'wb') as f:
         pickle.dump(meta, f)
-    
-    logger.info('started the function build_data')
     train_fout = os.path.join(args.data_dir, args.train_data)
-    build_data(train_data, vocab, vocab_tag, vocab_ner, train_fout, True, thread=args.threads)
+    build_data(train_data, vocab, vocab_tag, vocab_ner, train_fout, True)
     dev_fout = os.path.join(args.data_dir, args.dev_data)
-    build_data(valid_data, vocab, vocab_tag, vocab_ner, dev_fout, False, thread=args.threads)
+    build_data(valid_data, vocab, vocab_tag, vocab_ner, dev_fout, False)
 
 if __name__ == '__main__':
     main()
