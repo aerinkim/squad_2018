@@ -26,7 +26,7 @@ model_dir = args.model_dir
 data_dir = args.data_dir
 
 if args.philly_on:
-    model_dir = os.path.abspath(os.path.join(args.modelDir), '..')
+    model_dir = os.path.abspath(os.path.join(args.modelDir, '..'))
     data_dir = args.dataDir
 else:
     os.makedirs(model_dir, exist_ok=True)
@@ -70,14 +70,10 @@ def main():
 
     train_data = BatchGen(train_path,
                           batch_size=batch_size,
-                          dropout_w=args.dropout_w,
-                          dw_type=args.dw_type,
-                          gpu=args.cuda,
-                          elmo_on=args.elmo_on)
+                          gpu=args.cuda)
     dev_data = BatchGen(dev_path,
                           batch_size=args.batch_size_eval,
-                          gpu=args.cuda, is_train=False,
-                          elmo_on=args.elmo_on)
+                          gpu=args.cuda, is_train=False)
     logger.info('#' * 20)
     logger.info(opt)
     logger.info('#' * 20)
