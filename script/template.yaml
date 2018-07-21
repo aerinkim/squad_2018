@@ -1,0 +1,20 @@
+description: Hyperparam SAN Test
+
+auth:
+  vc: VC_NAME
+  cluster: CLUSTER_NAME
+  docker_repo: philly/jobs/test/pytorch
+  docker_tag: pytorch0.4.0-py36-mrc
+code:
+  code_upload: True
+  local_dir: ./
+
+data:
+  data_upload: False
+  remote_dir: /hdfs/VC_NAME/USER_NAME/DATA_DIR/
+
+jobs:
+  - name: test_philly
+    n_gpu: 1
+    args: "--philly_on"
+    entry_point: MAIN_FUNC

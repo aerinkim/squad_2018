@@ -23,13 +23,25 @@ from my_utils.squad_eval_v2 import evaluate_file_v2
 args = set_args()
 # set model dir
 model_dir = args.model_dir
-os.makedirs(model_dir, exist_ok=True)
-model_dir = os.path.abspath(model_dir)
+data_dir = args.data_dir
+
+if args.philly_on:
+    model_dir = os.path.abspath(os.path.join(args.modelDir), '..')
+    data_dir = args.dataDir
+else:
+    os.makedirs(model_dir, exist_ok=True)
+    model_dir = os.path.abspath(model_dir)
+
+# set environment
 
 # set environment
 set_environment(args.seed, args.cuda)
 # setup logger
-logger =  create_logger(__name__, to_disk=True, log_file=os.path.join(model_dir, args.log_file))
+log_path = args.log_file
+if args.philly_on:
+    log_path = os.path.join(model_dir, 'san.log')
+logger =  create_logger(__name__, to_disk=True, log_file=log_path)
+
 
 def check(model, data, gold_path):
     data.reset()
@@ -40,28 +52,41 @@ def check(model, data, gold_path):
         for uid, pred in zip(uids, phrase):
             predictions[uid] = pred
 
-    if args.expect_version == 'v2.0':
-        results = evaluate_file_v2(gold_path, predictions, args.na_prob_thresh)
-    else:
-        results = evaluate_file(gold_path, predictions)
+    results = evaluate_file(gold_path, predictions)
     return results['exact_match'], results['f1'], predictions
 
 def main():
     logger.info('Launching the SAN')
     opt = vars(args)
+    # update data dir
+    opt['data_dir'] = data_dir
     logger.info('Loading data')
-    embedding, opt = load_meta(opt, os.path.join(args.data_dir, args.meta))
-    train_data = BatchGen(os.path.join(args.data_dir, args.train_data),
-                          batch_size=args.batch_size,
-                          gpu=args.cuda)
-    dev_data = BatchGen(os.path.join(args.data_dir, args.dev_data),
+    embedding, opt = load_meta(opt, os.path.join(data_dir, args.meta))
+    train_path = os.path.join(data_dir, args.train_data)
+    dev_path = os.path.join(data_dir, args.dev_data)
+    batch_size = args.batch_size
+    if args.elmo_on:
+        batch_size = int(batch_size/2)
+
+    train_data = BatchGen(train_path,
+                          batch_size=batch_size,
+                          dropout_w=args.dropout_w,
+                          dw_type=args.dw_type,
+                          gpu=args.cuda,
+                          elmo_on=args.elmo_on)
+    dev_data = BatchGen(dev_path,
                           batch_size=args.batch_size_eval,
-                          gpu=args.cuda, is_train=False)
+                          gpu=args.cuda, is_train=False,
+                          elmo_on=args.elmo_on)
     logger.info('#' * 20)
     logger.info(opt)
     logger.info('#' * 20)
 
     model = DocReaderModel(opt, embedding)
+    # model meta str
+    headline = '############# Model Arch of SAN #############'
+    # print network
+    logger.info('\n{}\n{}\n'.format(headline, model.network))
     model.setup_eval_embed(embedding)
 
     logger.info("Total number of params: {}".format(model.total_param))
@@ -70,18 +95,19 @@ def main():
 
     best_em_score, best_f1_score = 0.0, 0.0
 
+    print("PROGRESS: 00.00%")
     for epoch in range(0, args.epoches):
         logger.warning('At epoch {}'.format(epoch))
         train_data.reset()
         start = datetime.now()
         for i, batch in enumerate(train_data):
             model.update(batch)
-            if (i + 1) % args.log_per_updates == 0 or i == 0:
+            if (model.updates) % args.log_per_updates == 0 or model.updates == 1:
                 logger.info('updates[{0:6}] train loss[{1:.5f}] remaining[{2}]'.format(
                     model.updates, model.train_loss.avg,
                     str((datetime.now() - start) / (i + 1) * (len(train_data) - i - 1)).split('.')[0]))
         # dev eval
-        em, f1, results = check(model, dev_data, os.path.join(args.data_dir, args.dev_gold))
+        em, f1, results = check(model, dev_data, os.path.join(data_dir, args.dev_gold))
         output_path = os.path.join(model_dir, 'dev_output_{}.json'.format(epoch))
         with open(output_path, 'w') as f:
             json.dump(results, f)
@@ -90,7 +116,7 @@ def main():
         if model.scheduler is not None:
             logger.info('scheduler_type {}'.format(opt['scheduler_type']))
             if opt['scheduler_type'] == 'rop':
-                model.scheduler.step(f1, epoch=epoch)
+                model.scheduler.step(f1+em, epoch=epoch)
             else:
                 model.scheduler.step()
         # save
@@ -98,11 +124,19 @@ def main():
         if not args.philly_on:
             model.save(model_file)
         if em + f1 > best_em_score + best_f1_score:
-            model.save(os.path.join(model_dir, 'best_checkpoint.pt'))
+            # model.save(os.path.join(model_dir, 'best_checkpoint.pt'))
+            for i in range(0, 10):
+                try:
+                    model.save(os.path.join(args.modelDir, 'best_checkpoint.pt'))
+                    logger.info('Saved the new best model and prediction')
+                    break
+                except:
+                    continue
             # copyfile(model_file, os.path.join(model_dir, 'best_checkpoint.pt'))
             best_em_score, best_f1_score = em, f1
             logger.info('Saved the new best model and prediction')
         logger.warning("Epoch {0} - dev EM: {1:.3f} F1: {2:.3f} (best EM: {3:.3f} F1: {4:.3f})".format(epoch, em, f1, best_em_score, best_f1_score))
+        print("PROGRESS: {0:.2f}%".format(100.0 * (epoch + 1) / args.epoches))
 
 if __name__ == '__main__':
     main()
