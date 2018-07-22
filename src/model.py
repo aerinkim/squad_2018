@@ -117,7 +117,9 @@ class DocReaderModel(object):
         end = F.softmax(end)
         start = start.data.cpu()
         end = end.data.cpu()
-        lab = lab.data.cpu()
+        # lab is used for SQuAD v2
+        if lab is not None:
+            lab = lab.data.cpu()
         text = batch['text']
         spans = batch['span']
         predictions = []
@@ -131,11 +133,11 @@ class DocReaderModel(object):
             scores = scores * pos_enc
             scores.triu_()
             scores = scores.numpy()
-            label_score = float(lab[i])
             best_idx = np.argpartition(scores, -top_k, axis=None)[-top_k]
             best_score = np.partition(scores, -top_k, axis=None)[-top_k]
             s_idx, e_idx = np.unravel_index(best_idx, scores.shape)
             if self.opt.get('extra_loss_on', False):
+                label_score = float(lab[i])
                 s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
                 answer = text[i][s_offset:e_offset]
                 if s_idx == len(spans[i]) - 1 or label_score < self.opt.get('classifier_threshold', 0.5):
