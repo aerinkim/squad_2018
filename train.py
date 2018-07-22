@@ -96,12 +96,12 @@ def main():
         logger.warning('At epoch {}'.format(epoch))
         train_data.reset()
         start = datetime.now()
-        # for i, batch in enumerate(train_data):
-            # model.update(batch)
-            # if (model.updates) % args.log_per_updates == 0 or model.updates == 1:
-                # logger.info('updates[{0:6}] train loss[{1:.5f}] remaining[{2}]'.format(
-                    # model.updates, model.train_loss.avg,
-                    # str((datetime.now() - start) / (i + 1) * (len(train_data) - i - 1)).split('.')[0]))
+        for i, batch in enumerate(train_data):
+            model.update(batch)
+            if (model.updates) % args.log_per_updates == 0 or model.updates == 1:
+                logger.info('updates[{0:6}] train loss[{1:.5f}] remaining[{2}]'.format(
+                    model.updates, model.train_loss.avg,
+                    str((datetime.now() - start) / (i + 1) * (len(train_data) - i - 1)).split('.')[0]))
         # dev eval
         em, f1, results = check(model, dev_data, os.path.join(data_dir, args.dev_gold))
         output_path = os.path.join(model_dir, 'dev_output_{}.json'.format(epoch))
