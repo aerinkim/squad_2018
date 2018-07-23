@@ -109,6 +109,9 @@ def model_config(parser):
     parser.add_argument('--classifier_threshold', type=float, default=0.4)
     parser.add_argument('--label_size', type=int, default=1)
 
+
+    parser.add_argument('--log_dir',default=None, type=str, help='Use for philly tools. Will replace log_file location if exists.')
+
     return parser
 
 def data_config(parser):
@@ -123,7 +126,7 @@ def data_config(parser):
     parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
-    parser.add_argument('--glove', default='data/glove.wiki.300d.txt',
+    parser.add_argument('--glove', default='data/glove_wiki_300d.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
                         help='word vector dimension.')
