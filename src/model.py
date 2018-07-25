@@ -88,11 +88,24 @@ class DocReaderModel(object):
             y = Variable(batch['start'], requires_grad=False), Variable(batch['end'], requires_grad=False)
             label = Variable(batch['label'], requires_grad=False)
 
-
-        # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
+        # start & end : start/end of the answer span - score of every token in the passage 
+        # start & end are calculated by combination of log_softmax and nll_loss (cross_entropy.)
         start, end, pred = self.network(batch)
-        
+
+        """
+        How y[0], y[1] look like
+        y[0]:  tensor([ 140,   12,   69,   90,   76,   44,   50,    5,   58,   58,
+          40,    9,    1,   37,  126,   37,   62,   96,   77,   12,
+          20,   76,   83,   48,   34,   91,   49,   53,  134,   90,
+          18,   68], device='cuda:0')
+        y[1]:  tensor([ 140,   13,   71,   91,   78,   45,   52,    5,   60,   58,
+          41,    9,    4,   39,  129,   37,   62,   97,   77,   12,
+          21,   77,   86,   49,   34,   92,   49,   55,  138,   97,
+          18,   68], device='cuda:0')
+        """
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
+
+
         if self.opt.get('extra_loss_on', False):
             loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
 
@@ -108,6 +121,12 @@ class DocReaderModel(object):
         self.updates += 1
         self.reset_embeddings()
         self.eval_embed_transfer = True
+
+
+
+
+
+
 
     def predict(self, batch, top_k=1):
         self.network.eval()
@@ -149,6 +168,13 @@ class DocReaderModel(object):
 
         return (predictions, best_scores)
 
+
+
+
+
+
+
+
     def setup_eval_embed(self, eval_embed, padding_idx = 0):
         self.network.lexicon_encoder.eval_embed = nn.Embedding(eval_embed.size(0),
                                                eval_embed.size(1),
@@ -173,6 +199,10 @@ class DocReaderModel(object):
             if offset < self.network.lexicon_encoder.embedding.weight.data.size(0):
                 self.network.lexicon_encoder.embedding.weight.data[offset:] \
                     = self.network.lexicon_encoder.fixed_embedding
+
+
+
+
 
     def save(self, filename):
         # strip cove

@@ -62,6 +62,8 @@ def main():
     logger.info(opt)
     logger.info('#' * 20)
 
+    #state_dict1 = torch.load("checkpoint/checkpoint_epoch_1.pt")
+    #model = DocReaderModel(opt, embedding, state_dict = state_dict1['state_dict'])
     model = DocReaderModel(opt, embedding)
     model.setup_eval_embed(embedding)
 
