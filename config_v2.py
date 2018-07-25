@@ -123,7 +123,7 @@ def data_config(parser):
     parser.add_argument('--dev_data', default='dev_data_v2.json',
                         help='path to preprocessed validation data file.')
     # parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
-    parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
+    parser.add_argument('--dev_gold', default='dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
     parser.add_argument('--glove', default='data/glove_wiki_300d.txt',

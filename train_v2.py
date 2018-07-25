@@ -82,7 +82,7 @@ def main():
                     model.updates, model.train_loss.avg,
                     str((datetime.now() - start) / (i + 1) * (len(train_data) - i - 1)).split('.')[0]))
         # dev eval
-        em, f1, results = check(model, dev_data, args.dev_gold)
+        em, f1, results = check(model, dev_data, os.path.join(args.data_dir,args.dev_gold))
         output_path = os.path.join(model_dir, 'dev_output_{}.json'.format(epoch))
         with open(output_path, 'w') as f:
             json.dump(results, f)
