@@ -22,8 +22,7 @@ class DocReaderModel(object):
         self.updates = state_dict['updates'] if state_dict and 'updates' in state_dict else 0
         self.eval_embed_transfer = True
         self.train_loss = AverageMeter()
-        self.adversarial_loss = adv_lib
-
+        self.embedding = embedding
         self.network = DNetwork(opt, embedding)
         
         if state_dict:
@@ -130,7 +129,7 @@ class DocReaderModel(object):
 
             return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
 
-        loss_adv = adversarial_loss(batch, loss, embedding) #self.tensors['cl_embedded'], self.tensors['cl_loss'], self.cl_loss_from_embedding
+        loss_adv = adversarial_loss(batch, loss, self.embedding) #self.tensors['cl_embedded'], self.tensors['cl_loss'], self.cl_loss_from_embedding
 
         loss = loss + loss_adv
 
