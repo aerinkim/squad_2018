@@ -76,13 +76,35 @@ class DocReaderModel(object):
             self.scheduler = None
         self.total_param = sum([p.nelement() for p in parameters]) - wvec_size
 
+
+    def adversarial_loss(self, batch, loss, embedding, y):
+        self.optimizer.zero_grad()
+        loss.backward()
+        grad = embedding.grad
+        grad = grad.detach()
+        #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
+        #grad = tf.stop_gradient(grad)
+        
+        perturb = F.normalize(grad, p=2)* 0.5
+        #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
+
+        self.optimizer.zero_grad()
+        adv_embedding = embedding + perturb
+        print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
+
+        network_temp = DNetwork(self.opt, adv_embedding )
+
+        start, end, _ = network_temp(batch)
+
+        return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
+
+
     def update(self, batch):
         """
         The SAN learning algorithm is to learn a function f(Q,P) -> A, at a word level. 
         The training data is a set of the query, passage and the answer tuples <Q,P,A>.
         """
         self.network.train()
-
         if self.opt['cuda']:
             y = Variable(batch['start'].cuda(async=True), requires_grad=False), Variable(batch['end'].cuda(async=True), requires_grad=False)
             label = Variable(batch['label'].cuda(async=True), requires_grad=False)
@@ -94,44 +116,11 @@ class DocReaderModel(object):
         # start & end are calculated by combination of log_softmax and nll_loss (cross_entropy.)
         start, end, pred = self.network(batch)
 
-        """
-        How y[0], y[1] look like
-        y[0]:  tensor([ 140,   12,   69,   90,   76,   44,   50,    5,   58,   58,
-          40,    9,    1,   37,  126,   37,   62,   96,   77,   12,
-          20,   76,   83,   48,   34,   91,   49,   53,  134,   90,
-          18,   68], device='cuda:0')
-        y[1]:  tensor([ 140,   13,   71,   91,   78,   45,   52,    5,   60,   58,
-          41,    9,    4,   39,  129,   37,   62,   97,   77,   12,
-          21,   77,   86,   49,   34,   92,   49,   55,  138,   97,
-          18,   68], device='cuda:0')
-        """
-        
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
 
+        #loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y) 
 
-        def adversarial_loss(batch, loss, embedding):
-            self.optimizer.zero_grad()
-            loss.backward()
-            grad = embedding.grad.detach()
-            grad = grad.detach()
-            #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
-            #grad = tf.stop_gradient(grad)
-            
-            perturb = grad.normalize(x, p=2, dim=1) * 0.5
-            #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            
-            self.network = DNetwork(opt, embedding + perturb)
-
-            start, end, pred = self.network(batch)
-
-            return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
-
-        loss_adv = adversarial_loss(batch, loss, self.embedding) #self.tensors['cl_embedded'], self.tensors['cl_loss'], self.cl_loss_from_embedding
-
-        loss = loss + loss_adv
+        #loss = loss + loss_adv
 
         if self.opt.get('extra_loss_on', False):
             loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
@@ -142,8 +131,7 @@ class DocReaderModel(object):
         # have all gradients computed automatically. 
         loss.backward()
         
-        torch.nn.utils.clip_grad_norm(self.network.parameters(),
-                                      self.opt['grad_clipping'])
+        torch.nn.utils.clip_grad_norm(self.network.parameters(), self.opt['grad_clipping'])
         self.optimizer.step()
         self.updates += 1
         self.reset_embeddings()
