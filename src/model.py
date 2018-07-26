@@ -12,6 +12,8 @@ from torch.autograd import Variable
 from my_utils.utils import AverageMeter
 from .dreader import DNetwork
 
+#import adversarial_losses as adv_lib
+
 logger = logging.getLogger(__name__)
 
 class DocReaderModel(object):
@@ -20,6 +22,7 @@ class DocReaderModel(object):
         self.updates = state_dict['updates'] if state_dict and 'updates' in state_dict else 0
         self.eval_embed_transfer = True
         self.train_loss = AverageMeter()
+        self.adversarial_loss = adv_lib
 
         self.network = DNetwork(opt, embedding)
         
@@ -103,8 +106,33 @@ class DocReaderModel(object):
           21,   77,   86,   49,   34,   92,   49,   55,  138,   97,
           18,   68], device='cuda:0')
         """
+        
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
 
+
+        def adversarial_loss(batch, loss, embedding):
+            self.optimizer.zero_grad()
+            loss.backward()
+            grad = embedding.grad.detach()
+            grad = grad.detach()
+            #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
+            #grad = tf.stop_gradient(grad)
+            
+            perturb = grad.normalize(x, p=2, dim=1) * 0.5
+            #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            
+            self.network = DNetwork(opt, embedding + perturb)
+
+            start, end, pred = self.network(batch)
+
+            return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
+
+        loss_adv = adversarial_loss(batch, loss, embedding) #self.tensors['cl_embedded'], self.tensors['cl_loss'], self.cl_loss_from_embedding
+
+        loss = loss + loss_adv
 
         if self.opt.get('extra_loss_on', False):
             loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
@@ -121,8 +149,6 @@ class DocReaderModel(object):
         self.updates += 1
         self.reset_embeddings()
         self.eval_embed_transfer = True
-
-
 
 
 
