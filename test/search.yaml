@@ -16,5 +16,5 @@ data:
 jobs:
   - name: test_philly
     n_gpu: 1
-    args: "--covec_path /philly/rr1/pnrsy/wli/v2.0/MT-LSTM.pt  --data_dir /philly/rr1/pnrsy/ahkim/data --philly_on"
+    args: "--covec_path /philly/rr1/pnrsy/wli/v2.0/MT-LSTM.pt  --data_dir /philly/rr1/pnrsy/ahkim/data --model_dir /philly/rr1/pnrsy/ahkim/data  --philly_on"
     entry_point: train_v2.py

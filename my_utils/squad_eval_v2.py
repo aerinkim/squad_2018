@@ -278,7 +278,7 @@ if __name__ == '__main__':
 
 def evaluate_file_v2(data_path, predictions, na_prob_thresh):
     expected_version = 'v2.0'
-    with open(data_path) as dataset_file:
+    with open(data_path , encoding='utf-8') as dataset_file:
         dataset_json = json.load(dataset_file)
         if (dataset_json['version'] != expected_version):
             print('Evaluation expects v-' + expected_version +
