@@ -96,8 +96,8 @@ def main():
                 model.scheduler.step()
         # save
         model_file = os.path.join(model_dir, 'checkpoint_epoch_{}.pt'.format(epoch))
-        if not args.philly_on:
-            model.save(model_file)
+        #if not args.philly_on:
+        model.save(model_file)
         if em + f1 > best_em_score + best_f1_score:
             copyfile(os.path.join(model_dir, model_file), os.path.join(model_dir, 'best_checkpoint.pt'))
             best_em_score, best_f1_score = em, f1
