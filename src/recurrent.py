@@ -124,6 +124,7 @@ class ContextualEmbed(nn.Module):
         self.rnn2.load_state_dict(state_dict2)
         for p in self.parameters(): p.requires_grad = False
         self.output_size = 600
+        #import pdb; pdb.set_trace()
 
     def setup_eval_embed(self, eval_embed, padding_idx=0):
         self.eval_embed = nn.Embedding(eval_embed.size(0), eval_embed.size(1), padding_idx = padding_idx)
@@ -133,10 +134,12 @@ class ContextualEmbed(nn.Module):
 
     def forward(self, x_idx, x_mask):
         emb = self.embedding if self.training else self.eval_embed
-        x_hiddens = emb(x_idx)
+        x_hiddens = emb(x_idx) # torch.Size([32, 357, 300]) // (Pdb) x_idx.size() -> torch.Size([32, 357])
         lengths = x_mask.data.eq(0).long().sum(1).squeeze()
         lens, indices = torch.sort(lengths, 0, True)
-        output1, _ = self.rnn1(pack(x_hiddens[indices], lens.tolist(), batch_first=True))
+        packed_input = pack(x_hiddens[indices], lens.tolist(), batch_first=True)
+        #import pdb; pdb.set_trace()
+        output1, _ = self.rnn1(packed_input)
         output2, _ = self.rnn2(output1)
         output1 = unpack(output1, batch_first=True)[0]
         output2 = unpack(output2, batch_first=True)[0]

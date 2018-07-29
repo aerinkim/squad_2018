@@ -28,6 +28,10 @@ class LexiconEncoder(nn.Module):
                     p.requires_grad = False
             else:
                 assert opt['tune_partial'] <= embedding.size(0)
+
+                #import pdb; pdb.set_trace()
+                #print('tune partial activated.')
+
                 fixed_embedding = embedding[opt['tune_partial']:]
                 self.register_buffer('fixed_embedding', fixed_embedding)
                 self.fixed_embedding = fixed_embedding
@@ -76,7 +80,7 @@ class LexiconEncoder(nn.Module):
         pos_size = self.create_pos_embed(opt) if opt['pos_on'] else 0
         ner_size = self.create_ner_embed(opt) if opt['ner_on'] else 0
         feat_size = opt['num_features'] if opt['feat_on'] else 0
-        print(feat_size)
+        #print(feat_size)
         doc_hidden_size = embedding_dim + covec_size + prealign_size + pos_size + ner_size + feat_size
         que_hidden_size = embedding_dim + covec_size
         if opt['prealign_bidi']:

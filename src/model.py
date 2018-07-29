@@ -79,7 +79,7 @@ class DocReaderModel(object):
 
     def adversarial_loss(self, batch, loss, embedding, y):
         self.optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
         grad = embedding.grad
         grad = grad.detach()
         #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
@@ -90,12 +90,14 @@ class DocReaderModel(object):
 
         self.optimizer.zero_grad()
         adv_embedding = embedding + perturb
-        print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
 
-        network_temp = DNetwork(self.opt, adv_embedding )
+        #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
 
+        network_temp = DNetwork(self.opt, adv_embedding)
+        network_temp.cuda() # This solves parameter type mismatch error. 
         start, end, _ = network_temp(batch)
-
+        del network_temp
+        
         return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
 
 
@@ -117,19 +119,18 @@ class DocReaderModel(object):
         start, end, pred = self.network(batch)
 
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
-
-        #loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y) 
-
-        #loss = loss + loss_adv
+        loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y) 
+        loss.detach_()
+        loss_total = loss + loss_adv
 
         if self.opt.get('extra_loss_on', False):
-            loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
+            loss_total = loss_total + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
 
-        self.train_loss.update(loss.data[0], len(start))
-        self.optimizer.zero_grad()
+        self.train_loss.update(loss_total.data[0], len(start))
         
         # have all gradients computed automatically. 
-        loss.backward()
+        self.optimizer.zero_grad()
+        loss_total.backward()
         
         torch.nn.utils.clip_grad_norm(self.network.parameters(), self.opt['grad_clipping'])
         self.optimizer.step()
