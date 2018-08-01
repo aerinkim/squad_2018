@@ -11,6 +11,7 @@ from my_utils.tokenizer import Vocabulary, reform_text, normal_query, build_voca
 from my_utils.word2vec_utils import load_glove_vocab, build_embedding
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
+from my_utils.data_utils import *
 from config_v2 import set_args
 
 """

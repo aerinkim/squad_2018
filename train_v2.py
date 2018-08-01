@@ -18,6 +18,7 @@ from config_v2 import set_args
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from my_utils.squad_eval_v2 import my_evaluation
+from my_utils.data_utils import load_squad_v2, evaluate_squad_v2
 
 args = set_args()
 
@@ -41,25 +42,6 @@ log_path = args.log_file
 if args.philly_on:
     log_path = os.path.join(args.modelDir, 'san.log')
 logger =  create_logger(__name__, to_disk=True, log_file=log_path)
-
-def load_squad_v2(path):
-    with open(path, 'r', encoding='utf-8') as f:
-        dataset_json = json.load(f)
-        dataset = dataset_json['data']
-        return dataset
-
-
-def evaluate_squad_v2(model, data):
-    data.reset()
-    predictions = {}
-    score_list = {}
-    for batch in data:
-        phrase, _, scores = model.predict(batch)
-        uids = batch['uids']
-        for uid, pred, score in zip(uids, phrase, scores):
-            predictions[uid] = pred
-            score_list[uid] = score
-    return predictions, score_list
 
 def main():
     logger.info('Launching the SAN')
@@ -119,6 +101,7 @@ def main():
         output_path = os.path.join(model_dir, 'dev_output_no_prob_{}.json'.format(epoch))
         with open(output_path, 'w') as f:
             json.dump(score_list, f)
+
         results = my_evaluation(dev_gold, results, score_list, args.na_prob_thresh)
         logger.info('{}'.format(results))
         em, f1 = results['exact'], results['f1']
