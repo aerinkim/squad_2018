@@ -97,7 +97,7 @@ def main():
         model.cuda()
 
     best_em_score, best_f1_score = 0.0, 0.0
-    dev_gold = load_gold(os.path.join(data_dir, args.dev_gold))
+    dev_gold = load_squad_v2(os.path.join(data_dir, args.dev_gold))
     print("PROGRESS: 00.00%")
     for epoch in range(0, args.epoches):
         logger.warning('At epoch {}'.format(epoch))
