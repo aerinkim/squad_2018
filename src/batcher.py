@@ -9,9 +9,9 @@ import numpy as np
 import pickle as pkl
 from shutil import copyfile
 from my_utils.tokenizer import UNK_ID
-from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper, ELMoTokenCharactersIndexer
+from allennlp.modules.elmo import batch_to_ids
+from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper
 
-Indexer = ELMoTokenCharactersIndexer()
 
 def load_meta(opt, meta_path):
     with open(meta_path, 'rb') as f:
@@ -132,13 +132,14 @@ class BatchGen:
 
                 if self.elmo_on:
                     doc_ctok = sample['doc_ctok']
-                    for j, w in enumerate(Indexer.tokens_to_indices(doc_ctok)):
+                    for j, w in enumerate(batch_to_ids(doc_ctok)[0].tolist()):
                         if j >= doc_select_len:
                             break
                         doc_cid[i, j, :len(w)] = torch.LongTensor(w)
 
                     query_ctok = sample['query_ctok']
-                    for j, w in enumerate(Indexer.tokens_to_indices(query_ctok)):
+                    for j, w in enumerate(batch_to_ids(query_ctok)[0].tolist()):
+                    #for j, w in enumerate(Indexer.tokens_to_indices(query_ctok)):
                         if j >= query_select_len:
                             break
                         query_cid[i, j, :len(w)] = torch.LongTensor(w)

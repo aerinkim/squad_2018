@@ -44,8 +44,8 @@ def model_config(parser):
     parser.add_argument('--elmo_config_path', type=str, default='data/elmo_weight/elmo_2x4096_512_2048cnn_2xhighway_options.json')
     parser.add_argument('--elmo_weight_path', type=str, default='data/elmo_weight/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5')
     parser.add_argument('--elmo_size', type=int, default=1024)
-    parser.add_argument('--elmo_att_on', action='store_false')
-    parser.add_argument('--elmo_self_att_on', action='store_false')
+    parser.add_argument('--elmo_att_on', action='store_true')
+    parser.add_argument('--elmo_self_att_on', action='store_true')
 
     ##contextual encoding
     parser.add_argument('--contextual_hidden_size', type=int, default=125)

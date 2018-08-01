@@ -24,3 +24,4 @@ v2
 temp.yaml
 private*
 test*
+*docker*

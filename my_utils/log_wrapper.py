@@ -9,6 +9,7 @@ def create_logger(name, silent=False, to_disk=False, log_file=None):
     # setup logger
     log = logging.getLogger(name)
     log.setLevel(logging.DEBUG)
+    log.propagate = False
     formatter = logging.Formatter(fmt='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S')
     if not silent:
         ch = logging.StreamHandler(sys.stdout)
