@@ -37,24 +37,3 @@ class Classifier(nn.Module):
         x = self.dropout(x)
         scores = self.proj(x)
         return scores
-
-
-class ClassifierPN(nn.Module):
-    def __init__(self, x_size, h_size, opt={}, prefix='decoder', dropout=None):
-        super(ClassifierPN, self).__init__()
-        self.prefix = prefix
-        self.attn = FlatSimilarityWrapper(x_size, h_size, prefix, opt, dropout)
-        self.opt = opt
-        self.label_size = opt['label_size']
-        self.classifier = Classifier(x_size, self.label_size, opt, prefix=prefix, dropout=dropout)
-        if dropout is None:
-            self.dropout = DropoutWrapper(opt.get('{}_dropout_p'.format(self.prefix), 0))
-        else:
-            self.dropout = dropout
-
-    def forward(self, x, h0, x_mask):
-        att_scores = self.attn(x, h0, x_mask)
-        x_sum = torch.bmm(F.softmax(att_scores).unsqueeze(1), x).squeeze(1)
-        x_sum = self.dropout(x_sum)
-        scores = self.classifier(x_sum, h0)
-        return scores

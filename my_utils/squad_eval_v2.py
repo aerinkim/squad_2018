@@ -267,29 +267,11 @@ def main():
   else:
     print(json.dumps(out_eval, indent=2))
 
-if __name__ == '__main__':
-  OPTS = parse_args()
-  if OPTS.out_image_dir:
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt 
-  main()
-
-
-def evaluate_file_v2(data_path, predictions, na_prob_thresh):
-    expected_version = 'v2.0'
-    with open(data_path) as dataset_file:
-        dataset_json = json.load(dataset_file)
-        if (dataset_json['version'] != expected_version):
-            print('Evaluation expects v-' + expected_version +
-                  ', but got dataset with v-' + dataset_json['version'],
-                  file=sys.stderr)
-        dataset = dataset_json['data']
-        return evaluate(dataset, predictions, na_prob_thresh)
-
-def evaluate(dataset, preds, na_prob_thresh):
-    na_probs = {k: 0.0 for k in preds}
-    qid_to_has_ans = make_qid_to_has_ans(dataset)  # maps qid to True/False
+def my_evaluation(dataset, preds, na_probs=None, na_prob_thresh=1.0):
+    has_na_prob_score = False if na_probs is None else True
+    if na_probs is None:
+        na_probs = {k: 0.0 for k in preds}
+    qid_to_has_ans = make_qid_to_has_ans(dataset)    # maps qid to True/False
     has_ans_qids = [k for k, v in qid_to_has_ans.items() if v]
     no_ans_qids = [k for k, v in qid_to_has_ans.items() if not v]
     exact_raw, f1_raw = get_raw_scores(dataset, preds)
@@ -302,6 +284,14 @@ def evaluate(dataset, preds, na_prob_thresh):
     if no_ans_qids:
         no_ans_eval = make_eval_dict(exact_thresh, f1_thresh, qid_list=no_ans_qids)
         merge_eval(out_eval, no_ans_eval, 'NoAns')
-    find_all_best_thresh(out_eval, preds, exact_raw, f1_raw, na_probs, qid_to_has_ans)
-    print(out_eval)
-    return {'exact_match': out_eval['best_exact'], 'f1': out_eval['best_f1']}
+    if has_na_prob_score:
+        find_all_best_thresh(out_eval, preds, exact_raw, f1_raw, na_probs, qid_to_has_ans)
+    return out_eval
+
+if __name__ == '__main__':
+  OPTS = parse_args()
+  if OPTS.out_image_dir:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt 
+  main()

@@ -29,7 +29,7 @@ def model_config(parser):
     parser.add_argument('--prealign_norm_on', action='store_true')
     parser.add_argument('--prealign_proj_on', action='store_true')
     parser.add_argument('--prealign_bidi', action='store_true')
-    parser.add_argument('--prealign_hidden_size', type=int, default=128)
+    parser.add_argument('--prealign_hidden_size', type=int, default=300)
     parser.add_argument('--prealign_share', action='store_false')
     parser.add_argument('--prealign_residual_on', action='store_true')
     parser.add_argument('--prealign_scale_on', action='store_false')
@@ -37,10 +37,18 @@ def model_config(parser):
     parser.add_argument('--prealign_activation', type=str, default='relu')
 
     parser.add_argument('--pwnn_on', action='store_false')
-    parser.add_argument('--pwnn_hidden_size', type=int, default=128)
+    parser.add_argument('--pwnn_hidden_size', type=int, default=125)
+
+    # ELMo config
+    parser.add_argument('--elmo_on', action='store_true')
+    parser.add_argument('--elmo_config_path', type=str, default='data/elmo_weight/elmo_2x4096_512_2048cnn_2xhighway_options.json')
+    parser.add_argument('--elmo_weight_path', type=str, default='data/elmo_weight/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5')
+    parser.add_argument('--elmo_size', type=int, default=1024)
+    parser.add_argument('--elmo_att_on', action='store_false')
+    parser.add_argument('--elmo_self_att_on', action='store_false')
 
     ##contextual encoding
-    parser.add_argument('--contextual_hidden_size', type=int, default=128)
+    parser.add_argument('--contextual_hidden_size', type=int, default=125)
     parser.add_argument('--contextual_cell_type', type=str, default='lstm')
     parser.add_argument('--contextual_weight_norm_on', action='store_true')
     parser.add_argument('--contextual_maxout_on', action='store_true')
@@ -49,7 +57,7 @@ def model_config(parser):
     parser.add_argument('--contextual_num_layers', type=int, default=2)
 
     ## mem setting
-    parser.add_argument('--msum_hidden_size', type=int, default=128)
+    parser.add_argument('--msum_hidden_size', type=int, default=125)
     parser.add_argument('--msum_cell_type', type=str, default='lstm')
     parser.add_argument('--msum_weight_norm_on', action='store_true')
     parser.add_argument('--msum_maxout_on', action='store_true')
@@ -59,7 +67,7 @@ def model_config(parser):
 
     # attention
     parser.add_argument('--deep_att_lexicon_input_on', action='store_false')
-    parser.add_argument('--deep_att_hidden_size', type=int, default=128)
+    parser.add_argument('--deep_att_hidden_size', type=int, default=125)
     parser.add_argument('--deep_att_sim_func', type=str, default='dotproductproject')
     parser.add_argument('--deep_att_activation', type=str, default='relu')
     parser.add_argument('--deep_att_norm_on', action='store_false')
@@ -70,10 +78,10 @@ def model_config(parser):
 
     # self attn
     parser.add_argument('--self_attention_on', action='store_false')
-    parser.add_argument('--self_att_hidden_size', type=int, default=128)
+    parser.add_argument('--self_att_hidden_size', type=int, default=125)
     parser.add_argument('--self_att_sim_func', type=str, default='dotproductproject')
     parser.add_argument('--self_att_activation', type=str, default='relu')
-    parser.add_argument('--self_att_norm_on', action='store_true')
+    parser.add_argument('--self_att_norm_on', action='store_false')
     parser.add_argument('--self_att_proj_on', action='store_true')
     parser.add_argument('--self_att_residual_on', action='store_true')
     parser.add_argument('--self_att_dropout', type=float, default=0.1)
@@ -92,7 +100,7 @@ def model_config(parser):
     parser.add_argument('--decoder_mem_type', type=int, default=3)
     parser.add_argument('--decoder_mem_drop_p', type=float, default=0.4)
     parser.add_argument('--decoder_opt', type=int, default=0)
-    parser.add_argument('--decoder_att_hidden_size', type=int, default=128)
+    parser.add_argument('--decoder_att_hidden_size', type=int, default=125)
     parser.add_argument('--decoder_att_type', type=str, default='bilinear',
                         help='bilinear/simple/defualt')
     parser.add_argument('--decoder_rnn_type', type=str, default='gru',
@@ -103,27 +111,28 @@ def model_config(parser):
 
     # extra loss
     parser.add_argument('--classifier_merge_opt', type=int, default=0)
-    parser.add_argument('--classifier_dropout_p', type=float, default=0.1)
+    parser.add_argument('--classifier_dropout_p', type=float, default=0.4)
     parser.add_argument('--classifier_weight_norm_on', action='store_false')
-    parser.add_argument('--classifier_gamma', type=float, default=0.5)
-    parser.add_argument('--classifier_threshold', type=float, default=0.4)
+    parser.add_argument('--classifier_gamma', type=float, default=1)
+    parser.add_argument('--classifier_threshold', type=float, default=0.5)
     parser.add_argument('--label_size', type=int, default=1)
 
     return parser
 
 def data_config(parser):
-    parser.add_argument('--log_file', default='san.log', help='path for log file.')
+    parser.add_argument('--log_file', default='san_sv2.log', help='path for log file.')
     parser.add_argument('--data_dir', default='data/')
+    parser.add_argument('--data_sort_on', action='store_true')
     parser.add_argument('--meta', default='squad_meta_v2.pick', help='path to preprocessed meta file.')
     parser.add_argument('--train_data', default='train_data_v2.json',
                         help='path to preprocessed training data file.')
     parser.add_argument('--dev_data', default='dev_data_v2.json',
                         help='path to preprocessed validation data file.')
     # parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
-    parser.add_argument('--dev_gold', default='data/dev-v2.0.json',
+    parser.add_argument('--dev_gold', default='dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
-    parser.add_argument('--glove', default='data/glove.840B.300d.txt',
+    parser.add_argument('--glove', default='D:\glove\glove.840B.300d.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
                         help='word vector dimension.')
@@ -136,7 +145,7 @@ def data_config(parser):
 
 def train_config(parser):
     parser.add_argument('--extra_loss', dest='extra_loss_on', action='store_false')
-    parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available(), 
+    parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available(),
                         help='whether to use GPU acceleration.')
     parser.add_argument('--log_per_updates', type=int, default=50)
     parser.add_argument('--epoches', type=int, default=40)
@@ -153,9 +162,11 @@ def train_config(parser):
     parser.add_argument('--vb_dropout', action='store_false')
     parser.add_argument('--dropout_p', type=float, default=0.4)
     parser.add_argument('--dropout_emb', type=float, default=0.4)
+    parser.add_argument('--dropout_cov', type=float, default=0.4)
+    parser.add_argument('--dropout_elmo', type=float, default=0.5)
     parser.add_argument('--dropout_w', type=float, default=0.05)
     parser.add_argument('--unk_id', type=int, default=1)
-    parser.add_argument('--na_prob_thresh', '-t', type=float, default=1.0,
+    parser.add_argument('--na_prob_thresh', '-t', type=float, default=0.5,
                         help='Predict "" if no-answer probability exceeds this (default = 1.0).')
 
     # scheduler
@@ -166,7 +177,7 @@ def train_config(parser):
     parser.add_argument('--fix_embeddings', action='store_true', help='if true, `tune_partial` will be ignored. This will remove the gradient to the embedding layer completely.')
     parser.add_argument('--tune_partial', type=int, default=1000, help='finetune top-x embeddings (including <PAD>, <UNK>). This will remove the gradient to all embeddings but the x most frequent words.')
     parser.add_argument('--model_dir', default='checkpoint')
-    parser.add_argument('--seed', type=int, default=2013,
+    parser.add_argument('--seed', type=int, default=1023,
                         help='random seed for data shuffling, embedding init, etc.')
     base_dir=os.getenv('PT_OUTPUT_DIR', 'model_data')
     parser.add_argument('--gpu', default=0, type=int, help='Use for philly tools. I don\'t know wtf it is.')

@@ -8,7 +8,6 @@ import argparse
 import json
 import torch
 import msgpack
-import pandas as pd
 import numpy as np
 from shutil import copyfile
 from datetime import datetime
@@ -18,51 +17,79 @@ from src.batcher import load_meta, BatchGen
 from config_v2 import set_args
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
-from my_utils.squad_eval import evaluate_file
-from my_utils.squad_eval_v2 import evaluate_file_v2
+from my_utils.squad_eval_v2 import my_evaluation
 
 args = set_args()
+
 # set model dir
 model_dir = args.model_dir
-os.makedirs(model_dir, exist_ok=True)
-model_dir = os.path.abspath(model_dir)
+data_dir = args.data_dir
+
+if args.philly_on:
+    model_dir = os.path.join(args.modelDir, '../checkpoint')
+    os.makedirs(model_dir, exist_ok=True)
+    model_dir = os.path.abspath(model_dir)
+    data_dir = args.dataDir
+else:
+    os.makedirs(model_dir, exist_ok=True)
+    model_dir = os.path.abspath(model_dir)
 
 # set environment
 set_environment(args.seed, args.cuda)
 # setup logger
-logger =  create_logger(__name__, to_disk=True, log_file=args.log_file)
+log_path = args.log_file
+if args.philly_on:
+    log_path = os.path.join(args.modelDir, 'san.log')
+logger =  create_logger(__name__, to_disk=True, log_file=log_path)
 
-def check(model, data, gold_path):
+def load_squad_v2(path):
+    with open(path, 'r', encoding='utf-8') as f:
+        dataset_json = json.load(f)
+        dataset = dataset_json['data']
+        return dataset
+
+
+def evaluate_squad_v2(model, data):
     data.reset()
     predictions = {}
+    score_list = {}
     for batch in data:
-        phrase, _ = model.predict(batch)
+        phrase, _, scores = model.predict(batch)
         uids = batch['uids']
-        for uid, pred in zip(uids, phrase):
+        for uid, pred, score in zip(uids, phrase, scores):
             predictions[uid] = pred
-
-    if args.expect_version == 'v2.0':
-        results = evaluate_file_v2(gold_path, predictions, args.na_prob_thresh)
-    else:
-        results = evaluate_file(gold_path, predictions)
-    return results['exact_match'], results['f1'], predictions
+            score_list[uid] = score
+    return predictions, score_list
 
 def main():
     logger.info('Launching the SAN')
     opt = vars(args)
+    # update data dir
+    opt['data_dir'] = data_dir
     logger.info('Loading data')
-    embedding, opt = load_meta(opt, os.path.join(args.data_dir, args.meta))
-    train_data = BatchGen(os.path.join(args.data_dir, args.train_data),
-                          batch_size=args.batch_size,
-                          gpu=args.cuda)
-    dev_data = BatchGen(os.path.join(args.data_dir, args.dev_data),
+    embedding, opt = load_meta(opt, os.path.join(data_dir, args.meta))
+    batch_size = args.batch_size
+    if args.elmo_on:
+        batch_size = int(batch_size/2)
+
+    train_data = BatchGen(os.path.join(data_dir, args.train_data),
+                          batch_size=batch_size,
+                          gpu=args.cuda,
+                          with_label=True,
+                          elmo_on=args.elmo_on)
+    dev_data = BatchGen(os.path.join(data_dir, args.dev_data),
                           batch_size=args.batch_size_eval,
-                          gpu=args.cuda, is_train=False)
+                          gpu=args.cuda, is_train=False, with_label=True,
+                          elmo_on=args.elmo_on)
     logger.info('#' * 20)
     logger.info(opt)
     logger.info('#' * 20)
 
     model = DocReaderModel(opt, embedding)
+    # model meta str
+    headline = '############# Model Arch of SAN #############'
+    # print network
+    logger.info('\n{}\n{}\n'.format(headline, model.network))
     model.setup_eval_embed(embedding)
 
     logger.info("Total number of params: {}".format(model.total_param))
@@ -70,22 +97,31 @@ def main():
         model.cuda()
 
     best_em_score, best_f1_score = 0.0, 0.0
-
+    dev_gold = load_gold(os.path.join(data_dir, args.dev_gold))
+    print("PROGRESS: 00.00%")
     for epoch in range(0, args.epoches):
         logger.warning('At epoch {}'.format(epoch))
         train_data.reset()
         start = datetime.now()
         for i, batch in enumerate(train_data):
             model.update(batch)
-            if (i + 1) % args.log_per_updates == 0 or i == 0:
+            if (model.updates) % args.log_per_updates == 0 or model.updates == 1:
                 logger.info('updates[{0:6}] train loss[{1:.5f}] remaining[{2}]'.format(
                     model.updates, model.train_loss.avg,
                     str((datetime.now() - start) / (i + 1) * (len(train_data) - i - 1)).split('.')[0]))
+
         # dev eval
-        em, f1, results = check(model, dev_data, args.dev_gold)
+        results, score_list = evaluate_squad_v2(model, dev_data)
         output_path = os.path.join(model_dir, 'dev_output_{}.json'.format(epoch))
         with open(output_path, 'w') as f:
             json.dump(results, f)
+
+        output_path = os.path.join(model_dir, 'dev_output_no_prob_{}.json'.format(epoch))
+        with open(output_path, 'w') as f:
+            json.dump(score_list, f)
+        results = my_evaluation(dev_gold, results, score_list, args.na_prob_thresh)
+        logger.info('{}'.format(results))
+        em, f1 = results['exact'], results['f1']
 
         # setting up scheduler
         if model.scheduler is not None:
@@ -98,11 +134,19 @@ def main():
         model_file = os.path.join(model_dir, 'checkpoint_epoch_{}.pt'.format(epoch))
         if not args.philly_on:
             model.save(model_file)
+
         if em + f1 > best_em_score + best_f1_score:
-            copyfile(os.path.join(model_dir, model_file), os.path.join(model_dir, 'best_checkpoint.pt'))
+            for i in range(0, 10):
+                try:
+                    # save on philly
+                    model.save(os.path.join(args.modelDir, 'best_checkpoint.pt'))
+                    logger.info('Saved the new best model and prediction')
+                    break
+                except:
+                    continue
             best_em_score, best_f1_score = em, f1
-            logger.info('Saved the new best model and prediction')
         logger.warning("Epoch {0} - dev EM: {1:.3f} F1: {2:.3f} (best EM: {3:.3f} F1: {4:.3f})".format(epoch, em, f1, best_em_score, best_f1_score))
+        print("PROGRESS: {0:.2f}%".format(100.0 * (epoch + 1) / args.epoches - 1.0))
 
 if __name__ == '__main__':
     main()

@@ -83,17 +83,19 @@ class DocReaderModel(object):
 
         if self.opt['cuda']:
             y = Variable(batch['start'].cuda(async=True), requires_grad=False), Variable(batch['end'].cuda(async=True), requires_grad=False)
-            label = Variable(batch['label'].cuda(async=True), requires_grad=False)
+            if self.opt.get('extra_loss_on', False):
+                label = Variable(batch['label'].cuda(async=True), requires_grad=False)
         else:
             y = Variable(batch['start'], requires_grad=False), Variable(batch['end'], requires_grad=False)
-            label = Variable(batch['label'], requires_grad=False)
+            if self.opt.get('extra_loss_on', False):
+                label = Variable(batch['label'], requires_grad=False)
 
 
         # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
         start, end, pred = self.network(batch)
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
-        if self.opt.get('extra_loss_on', False):
+        if batch['with_label'] and self.opt.get('extra_loss_on', False):
             loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
 
         self.train_loss.update(loss.data[0], len(start))
@@ -106,24 +108,32 @@ class DocReaderModel(object):
                                       self.opt['grad_clipping'])
         self.optimizer.step()
         self.updates += 1
-        self.reset_embeddings()
+        #self.reset_embeddings()
         self.eval_embed_transfer = True
 
     def predict(self, batch, top_k=1):
         self.network.eval()
         self.network.drop_emb = False
+        # Transfer trained embedding to evaluation embedding
+        if self.eval_embed_transfer:
+            self.update_eval_embed()
+            self.eval_embed_transfer = False
+
         start, end, lab = self.network(batch)
         start = F.softmax(start)
         end = F.softmax(end)
         start = start.data.cpu()
         end = end.data.cpu()
+
         # lab is used for SQuAD v2
         if lab is not None:
             lab = lab.data.cpu()
+
         text = batch['text']
         spans = batch['span']
         predictions = []
         best_scores = []
+        label_predictions = []
 
         max_len = self.opt['max_len'] or start.size(1)
         doc_len = start.size(1)
@@ -136,20 +146,23 @@ class DocReaderModel(object):
             best_idx = np.argpartition(scores, -top_k, axis=None)[-top_k]
             best_score = np.partition(scores, -top_k, axis=None)[-top_k]
             s_idx, e_idx = np.unravel_index(best_idx, scores.shape)
-            if self.opt.get('extra_loss_on', False):
+            if batch['with_label'] and self.opt.get('extra_loss_on', False):
                 label_score = float(lab[i])
                 s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
                 answer = text[i][s_offset:e_offset]
-                if s_idx == len(spans[i]) - 1 or label_score < self.opt.get('classifier_threshold', 0.5):
+                if s_idx == len(spans[i]) - 1:
                     answer = ''
                 predictions.append(answer)
-                best_scores.append(best_score * lab)
+                best_scores.append(best_score)
+                label_predictions.append(label_score)
             else:
                 s_offset, e_offset = spans[i][s_idx][0], spans[i][e_idx][1]
                 predictions.append(text[i][s_offset:e_offset])
                 best_scores.append(best_score)
-
-        return (predictions, best_scores)
+        if self.opt.get('extra_loss_on', False):
+            return (predictions, best_scores, label_predictions)
+        else:
+            return (predictions, best_scores)
 
     def setup_eval_embed(self, eval_embed, padding_idx = 0):
         self.network.lexicon_encoder.eval_embed = nn.Embedding(eval_embed.size(0),
@@ -178,7 +191,7 @@ class DocReaderModel(object):
 
     def save(self, filename):
         # strip cove
-        network_state = dict([(k, v) for k, v in self.network.state_dict().items() if k[0:4] != 'CoVe'])
+        network_state = dict([(k, v.cpu()) for k, v in self.network.state_dict().items() if k[0:4] != 'CoVe'])
         if 'eval_embed.weight' in network_state:
             del network_state['eval_embed.weight']
         if 'fixed_embedding' in network_state:

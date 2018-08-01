@@ -8,6 +8,10 @@ import logging
 import numpy as np
 import pickle as pkl
 from shutil import copyfile
+from my_utils.tokenizer import UNK_ID
+from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper, ELMoTokenCharactersIndexer
+
+Indexer = ELMoTokenCharactersIndexer()
 
 def load_meta(opt, meta_path):
     with open(meta_path, 'rb') as f:
@@ -20,12 +24,15 @@ def load_meta(opt, meta_path):
 
 class BatchGen:
     """A class to hold the information needed for a training batch"""
-    def __init__(self, data_path, batch_size, gpu, is_train=True, doc_maxlen=1000):
+    def __init__(self, data_path, batch_size, gpu, is_train=True, 
+                 doc_maxlen=1000, with_label=False, dropout_w=0.05, dw_type=0,
+                 elmo_on=False):
         self.batch_size = batch_size
         self.doc_maxlen = doc_maxlen
         self.is_train = is_train
         self.gpu = gpu
         self.data_path = data_path
+        self.elmo_on = elmo_on
         self.data = self.load(self.data_path, is_train, doc_maxlen)
         if is_train:
             indices = list(range(len(self.data)))
@@ -35,6 +42,9 @@ class BatchGen:
         data = [self.data[i:i + batch_size] for i in range(0, len(self.data), batch_size)]
         self.data = data
         self.offset = 0
+        self.with_label = with_label
+        self.dropout_w = dropout_w
+        self.dw_type = dw_type
 
     def load(self, path, is_train=True, doc_maxlen=1000):
         with open(path, 'r', encoding='utf-8') as reader:
@@ -46,8 +56,6 @@ class BatchGen:
                 cnt += 1
                 if is_train and (len(sample['doc_tok']) > doc_maxlen or \
                                  sample['start'] is None or sample['end'] is None):
-                    import pdb; pdb.set_trace()
-                    print(sample['uid'])
                     continue
                 data.append(sample)
             print('Loaded {} samples out of {}'.format(len(data), cnt))
@@ -59,6 +67,18 @@ class BatchGen:
             random.shuffle(indices)
             self.data = [self.data[i] for i in indices]
         self.offset = 0
+
+    def __random_select__(self, arr):
+        if self.dropout_w > 0:
+            if self.dw_type > 0:
+                ids = list(set(arr))
+                ids_size = len(ids)
+                random.shuffle(ids)
+                ids = set(ids[:int(ids_size * self.dropout_w)])
+                return [UNK_ID if e in ids else e for e in arr]
+            else:
+                return [UNK_ID if random.uniform(0, 1) < self.dropout_w else e for e in arr]
+        else: return arr
 
     def __len__(self):
         return len(self.data)
@@ -79,19 +99,49 @@ class BatchGen:
             doc_ent = torch.LongTensor(batch_size, doc_len).fill_(0)
             doc_feature = torch.Tensor(batch_size, doc_len, feature_len).fill_(0)
 
+            query_len = max(len(x['query_tok']) for x in batch)
+            query_id = torch.LongTensor(batch_size, query_len).fill_(0)
+            query_tag = torch.LongTensor(batch_size, query_len).fill_(0)
+            query_ent = torch.LongTensor(batch_size, query_len).fill_(0)
+            query_feature = torch.Tensor(batch_size, query_len, feature_len).fill_(0)
+
+            if self.elmo_on:
+                doc_cid = torch.LongTensor(batch_size, doc_len, ELMoCharacterMapper.max_word_length).fill_(0)
+                query_cid = torch.LongTensor(batch_size, query_len, ELMoCharacterMapper.max_word_length).fill_(0)
+
             for i, sample in enumerate(batch):
-                select_len = min(len(sample['doc_tok']), doc_len)
-                doc_id[i, :select_len] = torch.LongTensor(sample['doc_tok'][:select_len])
-                doc_tag[i, :select_len] = torch.LongTensor(sample['doc_pos'][:select_len])
-                doc_ent[i, :select_len] = torch.LongTensor(sample['doc_ner'][:select_len])
+                doc_select_len = min(len(sample['doc_tok']), doc_len)
+                doc_tok = sample['doc_tok']
+                if self.is_train:
+                    doc_tok = self.__random_select__(doc_tok)
+                doc_id[i, :doc_select_len] = torch.LongTensor(doc_tok[:doc_select_len])
+                doc_tag[i, :doc_select_len] = torch.LongTensor(sample['doc_pos'][:doc_select_len])
+                doc_ent[i, :doc_select_len] = torch.LongTensor(sample['doc_ner'][:doc_select_len])
                 for j, feature in enumerate(eval(sample['doc_fea'])):
                     doc_feature[i, j, :] = torch.Tensor(feature)
 
-            query_len = max(len(x['query_tok']) for x in batch)
-            query_id = torch.LongTensor(batch_size, query_len).fill_(0)
-            for i, sample in enumerate(batch):
-                select_len = min(len(sample['query_tok']), query_len)
-                query_id[i, :len(sample['query_tok'])] = torch.LongTensor(sample['query_tok'][:select_len])
+                query_select_len = min(len(sample['query_tok']), query_len)
+                query_tok = sample['query_tok']
+                if self.is_train:
+                    query_tok = self.__random_select__(query_tok)
+                query_id[i, :query_select_len] = torch.LongTensor(query_tok[:query_select_len])
+                query_tag[i, :query_select_len] = torch.LongTensor(sample['query_pos'][:query_select_len])
+                query_ent[i, :query_select_len] = torch.LongTensor(sample['query_ner'][:query_select_len])
+                for j, feature in enumerate(eval(sample['query_fea'])):
+                    query_feature[i, j, :] = torch.Tensor(feature)
+
+                if self.elmo_on:
+                    doc_ctok = sample['doc_ctok']
+                    for j, w in enumerate(Indexer.tokens_to_indices(doc_ctok)):
+                        if j >= doc_select_len:
+                            break
+                        doc_cid[i, j, :len(w)] = torch.LongTensor(w)
+
+                    query_ctok = sample['query_ctok']
+                    for j, w in enumerate(Indexer.tokens_to_indices(query_ctok)):
+                        if j >= query_select_len:
+                            break
+                        query_cid[i, j, :len(w)] = torch.LongTensor(w)
 
             # both masks have the same shape as their _id's.
             doc_mask = torch.eq(doc_id, 0) 
@@ -101,25 +151,38 @@ class BatchGen:
             batch_dict['doc_pos'] = doc_tag
             batch_dict['doc_ner'] = doc_ent
             batch_dict['doc_fea'] = doc_feature
+
             batch_dict['query_tok'] = query_id
+            batch_dict['query_pos'] = query_tag
+            batch_dict['query_ner'] = query_ent
+            batch_dict['query_fea'] = query_feature
+            
             batch_dict['doc_mask'] = doc_mask
             batch_dict['query_mask'] = query_mask
+            if self.elmo_on:
+                batch_dict['doc_ctok'] = doc_cid
+                batch_dict['query_ctok'] = query_cid
 
             if self.is_train:
                 start = [sample['start'] for sample in batch]
                 end = [sample['end'] for sample in batch]
-                label = [sample['label'] for sample in batch]
                 batch_dict['start'] = torch.LongTensor(start)
                 batch_dict['end'] = torch.LongTensor(end)
-                batch_dict['label'] = torch.FloatTensor(label)
+                if self.with_label:
+                    label = [sample['label'] for sample in batch]
+                    batch_dict['label'] = torch.FloatTensor(label)
 
             if self.gpu:
                 for k, v in batch_dict.items():
                     batch_dict[k] = v.pin_memory()
-
-            batch_dict['text'] = [sample['context'] for sample in batch]
-            batch_dict['span'] = [sample['span'] for sample in batch]
+            
+            # load others
             batch_dict['uids'] = [sample['uid'] for sample in batch]
+            batch_dict['with_label'] = self.with_label
+            if not self.is_train:
+                batch_dict['text'] = [sample['context'] for sample in batch]
+                batch_dict['span'] = [sample['span'] for sample in batch]
+
             self.offset += 1
 
             yield batch_dict
