@@ -81,23 +81,24 @@ class DocReaderModel(object):
         self.optimizer.zero_grad()
         loss.backward(retain_graph=True)
         grad = embedding.grad
-        grad = grad.detach()
+        grad.detach_()
         #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
         #grad = tf.stop_gradient(grad)
         
         perturb = F.normalize(grad, p=2)* 0.5
         #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
 
-        self.optimizer.zero_grad()
         adv_embedding = embedding + perturb
 
         #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
 
-        network_temp = DNetwork(self.opt, adv_embedding)
+        network_temp = DNetwork(self.opt, adv_embedding)#, training=False)
+        network_temp.training = False
         network_temp.cuda() # This solves parameter type mismatch error. 
         start, end, _ = network_temp(batch)
         del network_temp
-        
+        torch.cuda.empty_cache()
+
         return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
 
 
@@ -120,7 +121,6 @@ class DocReaderModel(object):
 
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
         loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y) 
-        loss.detach_()
         loss_total = loss + loss_adv
 
         if self.opt.get('extra_loss_on', False):
@@ -130,15 +130,13 @@ class DocReaderModel(object):
         
         # have all gradients computed automatically. 
         self.optimizer.zero_grad()
-        loss_total.backward()
+        loss_total.backward(retain_graph=False)
         
         torch.nn.utils.clip_grad_norm(self.network.parameters(), self.opt['grad_clipping'])
         self.optimizer.step()
         self.updates += 1
-        self.reset_embeddings()
+        #self.reset_embeddings()
         self.eval_embed_transfer = True
-
-
 
 
 
