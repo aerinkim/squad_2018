@@ -9,27 +9,38 @@ If you use other dockers, please change the data_dir and other parameters
 parser = argparse.ArgumentParser()
 parser.add_argument('--template', default='script/template.yaml')
 parser.add_argument('--out', default='script/temp.yaml')
+parser.add_argument('--epoches', type=int, default=40)
 parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--name', type=str, default='san')
-parser.add_argument('--main', type=str, default='train.py')
-parser.add_argument('--vc', type=str, default='resrchvc')
-parser.add_argument('--data_dir', default='data', required=True)
-parser.add_argument('--cluster', default='gcr', required=True)
-parser.add_argument('--user', type=str, required=True)
+parser.add_argument('--batch_size_eval', type=int, default=32)
+parser.add_argument('--name', default='v2_elmo')
+parser.add_argument('--main', default='train_v2.py')
+parser.add_argument('--vc', default='pnrsy')
+parser.add_argument('--data_dir', default='squad_elmo/v2.0', help='based on user root')
+parser.add_argument('--model_dir', default='squad_elmo/v2.0/checkpoint', help='based on user root')
+parser.add_argument('--cluster', default='rr1')
+parser.add_argument('--user', default='wli')
+parser.add_argument('--elmo_on', default='true', help='str "true" if want enable elmo')
 
 args = parser.parse_args()
 cluster = args.cluster
 vc = args.vc
 user = args.user
 data_dir = args.data_dir
+model_dir = args.model_dir
 
 with open(args.template) as f:
     output_file=open(args.out,'w')
     for line in f:
         write_line = line.replace('VC_NAME',vc).replace('CLUSTER_NAME',cluster)
+        write_line = write_line.replace('JOB_NAME', args.name)
         write_line = write_line.replace('USER_NAME', user)
         write_line = write_line.replace('DATA_DIR', data_dir)
+        write_line = write_line.replace('MODEL_DIR', model_dir)
         write_line = write_line.replace('MAIN_FUNC', args.main)
+        write_line = write_line.replace('EPOCHES', str(args.epoches))
+        write_line = write_line.replace('BATCH_SIZE_EVAL', str(args.batch_size_eval))
+        write_line = write_line.replace('BATCH_SIZE', str(args.batch_size))
+        write_line = write_line.replace('ELMO_ON', '--elmo_on' if args.elmo_on == 'true' else '')
         if 'extra_args' in line and cluster!='rr1':
             write_line = '{} --batch_size {}\n'.format(write_line[:-2], args.batch_size)
         output_file.write(write_line)

@@ -94,14 +94,14 @@ def load_data(path, is_train=True):
             context = paragraph['context']
 
             for qa in paragraph['qas']:
-                uid, question = qa['id'], qa['question']
+                uid, question = str(qa['id']), qa['question']
                 is_impossible = qa.get('is_impossible', False)
                 label = 0 if is_impossible else 1
                 answers = qa.get('answers', [])
                 if is_train:
                     if len(answers) < 1: continue
-                    answer = answers[0]['text']
-                    answer_start = answers[0]['answer_start']
+                    answer = answers[0]['text'].rstrip()
+                    answer_start = int(answers[0]['answer_start'])
                     answer_end = answer_start + len(answer)
 
                     sample = {'uid': uid, 'context': context, 'question': question, 'answer': answer, 'answer_start': answer_start, 'answer_end':answer_end, 'label': label}
@@ -222,7 +222,7 @@ def main():
     vocab_tag = Vocabulary.build(nlp.tagger.tag_names, neat=True)
     vocab_ner = Vocabulary.build([''] + nlp.entity.cfg[u'actions']['1'], neat=True)
     logger.info('Build vocabulary')
-    vocab = build_vocab(train_data + valid_data, glove_vocab, sort_all=args.sort_all, clean_on=True)
+    vocab = build_vocab(train_data + valid_data, glove_vocab, sort_all=args.sort_all, thread=args.threads, clean_on=True)
     meta_path = os.path.join(args.data_dir, args.meta)
     logger.info('building embedding')
     embedding = build_embedding(glove_path, vocab, glove_dim)

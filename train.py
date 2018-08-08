@@ -18,7 +18,6 @@ from config import set_args
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from my_utils.squad_eval import evaluate_file
-from my_utils.squad_eval_v2 import evaluate_file_v2
 
 args = set_args()
 # set model dir
@@ -26,13 +25,11 @@ model_dir = args.model_dir
 data_dir = args.data_dir
 
 if args.philly_on:
-    model_dir = os.path.abspath(os.path.join(args.modelDir, '..'))
-    data_dir = args.dataDir
+    model_dir = model_dir
+    data_dir = data_dir
 else:
     os.makedirs(model_dir, exist_ok=True)
     model_dir = os.path.abspath(model_dir)
-
-# set environment
 
 # set environment
 set_environment(args.seed, args.cuda)

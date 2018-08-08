@@ -34,12 +34,16 @@ class BatchGen:
         self.data_path = data_path
         self.elmo_on = elmo_on
         self.data = self.load(self.data_path, is_train, doc_maxlen)
+        # Shuffling for training
         if is_train:
             indices = list(range(len(self.data)))
             random.shuffle(indices)
             data = [self.data[i] for i in indices]
-        # Shuffling for training
         data = [self.data[i:i + batch_size] for i in range(0, len(self.data), batch_size)]
+        # take care of last single-element list to have at least two elements, to bypass a pytorch bug
+        if len(data) > 0 and len(data[-1]) == 1:
+            data[-1].append(data[-2][-1])
+            del data[-2][-1]
         self.data = data
         self.offset = 0
         self.with_label = with_label
@@ -54,8 +58,7 @@ class BatchGen:
             for line in reader:
                 sample = json.loads(line)
                 cnt += 1
-                if is_train and (len(sample['doc_tok']) > doc_maxlen or \
-                                 sample['start'] is None or sample['end'] is None):
+                if is_train and (sample['start'] is None or sample['end'] is None):
                     continue
                 data.append(sample)
             print('Loaded {} samples out of {}'.format(len(data), cnt))

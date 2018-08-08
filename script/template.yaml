@@ -14,7 +14,7 @@ data:
   remote_dir: /hdfs/VC_NAME/USER_NAME/DATA_DIR/
 
 jobs:
-  - name: test_philly
+  - name: JOB_NAME
     n_gpu: 1
-    args: "--philly_on"
+    args: "ELMO_ON --epoches EPOCHES --batch_size BATCH_SIZE --batch_size_eval BATCH_SIZE_EVAL --data_dir /hdfs/VC_NAME/USER_NAME/DATA_DIR/ --model_dir /hdfs/VC_NAME/USER_NAME/MODEL_DIR --philly_on"
     entry_point: MAIN_FUNC

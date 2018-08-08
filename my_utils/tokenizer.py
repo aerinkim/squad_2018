@@ -2,6 +2,7 @@ import re
 import warnings
 import tqdm
 import logging
+import spacy
 import unicodedata
 from collections import Counter
 from functools import partial
@@ -11,10 +12,10 @@ from multiprocessing import Pool as ThreadPool
 logger = logging.getLogger(__name__)
 
 DUMMY = 'DUMMMMMY'
-PAD = '<PAD>'
-UNK = '<UNK>'
-STA= '<BOS>'
-END = '<EOS>'
+PAD = 'PAAAAAD'
+UNK = 'UNNNNNK'
+STA= 'BOOOOOS'
+END = 'EOOOOOS'
 
 PAD_ID = 0
 UNK_ID = 1
@@ -105,11 +106,11 @@ def build_vocab(data, glove_vocab=None, sort_all=False, thread=24, clean_on=Fals
 
     print('Collect vocab/pos counter/ner counter')
     # docs
-    docs = [reform_text(sample['context']) for sample in data]
-    doc_tokened = [doc for doc in nlp.pipe(docs, batch_size=10000, n_threads=thread)]
+    docs = [reform_text(sample['context']) for sample in tqdm.tqdm(data, total=len(data))]
+    doc_tokened = [doc for doc in nlp.pipe(docs, batch_size=1000, n_threads=thread)]
     print('Done with doc tokenize')
-    questions = [reform_text(sample['question']) for sample in data]
-    questions_tokened = [question for question in nlp.pipe(questions, batch_size=10000, n_threads=thread)]
+    questions = [reform_text(sample['question']) for sample in tqdm.tqdm(data, total=len(data))]
+    questions_tokened = [question for question in nlp.pipe(questions, batch_size=1000, n_threads=thread)]
     print('Done with question tokenize')
 
     tag_counter = Counter()
@@ -117,7 +118,7 @@ def build_vocab(data, glove_vocab=None, sort_all=False, thread=24, clean_on=Fals
     if sort_all:
         counter = Counter()
         merged = doc_tokened + questions_tokened
-        for tokened in tqdm.tqdm(merged, total=len(data)):
+        for tokened in tqdm.tqdm(merged, total=len(merged)):
             counter.update([w.text for w in tokened if len(w.text) > 0])
             tag_counter.update([w.tag_ for w in tokened if len(w.text) > 0])
             ner_counter.update(['{}_{}'.format(w.ent_type_, w.ent_iob_) for w in tokened])

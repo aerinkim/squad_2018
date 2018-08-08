@@ -65,7 +65,7 @@ class LexiconEncoder(nn.Module):
         size = opt['elmo_size']
         self.elmo_on = elmo_on
         if elmo_on:
-            self.elmo = Elmo(opt['elmo_config_path'], opt['elmo_weight_path'], num_layer, dropout=opt['dropout_elmo'])
+            self.elmo = Elmo(os.path.join(opt['data_dir'], opt['elmo_config_path']), os.path.join(opt['data_dir'], opt['elmo_weight_path']), num_layer, dropout=opt['dropout_elmo'])
         else:
             self.elmo = None
             size = 0

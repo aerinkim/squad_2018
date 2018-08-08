@@ -41,8 +41,8 @@ def model_config(parser):
 
     # ELMo config
     parser.add_argument('--elmo_on', action='store_true')
-    parser.add_argument('--elmo_config_path', type=str, default='data/elmo_weight/elmo_2x4096_512_2048cnn_2xhighway_options.json')
-    parser.add_argument('--elmo_weight_path', type=str, default='data/elmo_weight/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5')
+    parser.add_argument('--elmo_config_path', type=str, default='elmo_2x4096_512_2048cnn_2xhighway_options.json')
+    parser.add_argument('--elmo_weight_path', type=str, default='elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5')
     parser.add_argument('--elmo_size', type=int, default=1024)
     parser.add_argument('--elmo_att_on', action='store_true')
     parser.add_argument('--elmo_self_att_on', action='store_true')
@@ -121,25 +121,24 @@ def model_config(parser):
 
 def data_config(parser):
     parser.add_argument('--log_file', default='san_sv2.log', help='path for log file.')
-    parser.add_argument('--data_dir', default='data/')
+    parser.add_argument('--data_dir', default='data_v2/')
     parser.add_argument('--data_sort_on', action='store_true')
     parser.add_argument('--meta', default='squad_meta_v2.pick', help='path to preprocessed meta file.')
     parser.add_argument('--train_data', default='train_data_v2.json',
                         help='path to preprocessed training data file.')
     parser.add_argument('--dev_data', default='dev_data_v2.json',
                         help='path to preprocessed validation data file.')
-    # parser.add_argument('--dev_gold', default='data/dev-v1.1.json',
     parser.add_argument('--dev_gold', default='dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
-    parser.add_argument('--glove', default='D:\glove\glove.840B.300d.txt',
+    parser.add_argument('--glove', default='glove.840B.300d.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
                         help='word vector dimension.')
     parser.add_argument('--sort_all', action='store_true',
                         help='sort the vocabulary by frequencies of all words.'
                              'Otherwise consider question words first.')
-    parser.add_argument('--threads', type=int, default=multiprocessing.cpu_count(),
+    parser.add_argument('--threads', type=int, default=multiprocessing.cpu_count()-1,
                         help='number of threads for preprocessing.')
     return parser
 
@@ -176,7 +175,7 @@ def train_config(parser):
     parser.add_argument('--scheduler_type', type=str, default='ms', help='ms/rop/exp')
     parser.add_argument('--fix_embeddings', action='store_true', help='if true, `tune_partial` will be ignored. This will remove the gradient to the embedding layer completely.')
     parser.add_argument('--tune_partial', type=int, default=1000, help='finetune top-x embeddings (including <PAD>, <UNK>). This will remove the gradient to all embeddings but the x most frequent words.')
-    parser.add_argument('--model_dir', default='checkpoint')
+    parser.add_argument('--model_dir', default='checkpoint_v2')
     parser.add_argument('--seed', type=int, default=1023,
                         help='random seed for data shuffling, embedding init, etc.')
     base_dir=os.getenv('PT_OUTPUT_DIR', 'model_data')

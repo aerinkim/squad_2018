@@ -66,7 +66,7 @@ class DocReaderModel(object):
             if opt.get('scheduler_type', 'rop') == 'rop':
                 self.scheduler = ReduceLROnPlateau(self.optimizer, mode='max', factor=opt['lr_gamma'], patience=3)
             elif opt.get('scheduler_type', 'rop') == 'exp':
-                self.scheduler = ExponentioalLR(self.optimizer, gamma=opt.get('lr_gamma', 0.5))
+                self.scheduler = ExponentialLR(self.optimizer, gamma=opt.get('lr_gamma', 0.5))
             else:
                 milestones = [int(step) for step in opt.get('multi_step_lr', '10,20,30').split(',')]
                 self.scheduler = MultiStepLR(self.optimizer, milestones=milestones, gamma=opt.get('lr_gamma'))

@@ -18,7 +18,7 @@ from config_v2 import set_args
 from my_utils.utils import set_environment
 from my_utils.log_wrapper import create_logger
 from my_utils.squad_eval_v2 import my_evaluation
-from my_utils.data_utils import load_squad_v2, evaluate_squad_v2
+from my_utils.process_data_utils import load_squad_v2, evaluate_squad_v2
 
 args = set_args()
 
@@ -27,10 +27,9 @@ model_dir = args.model_dir
 data_dir = args.data_dir
 
 if args.philly_on:
-    model_dir = os.path.join(args.modelDir, '../checkpoint')
     os.makedirs(model_dir, exist_ok=True)
     model_dir = os.path.abspath(model_dir)
-    data_dir = args.dataDir
+    data_dir = data_dir
 else:
     os.makedirs(model_dir, exist_ok=True)
     model_dir = os.path.abspath(model_dir)
@@ -40,7 +39,7 @@ set_environment(args.seed, args.cuda)
 # setup logger
 log_path = args.log_file
 if args.philly_on:
-    log_path = os.path.join(args.modelDir, 'san.log')
+    log_path = os.path.join(model_dir, 'san.log')
 logger =  create_logger(__name__, to_disk=True, log_file=log_path)
 
 def main():
@@ -54,14 +53,14 @@ def main():
     if args.elmo_on:
         batch_size = int(batch_size/2)
 
+    dev_data = BatchGen(os.path.join(data_dir, args.dev_data),
+                          batch_size=args.batch_size_eval,
+                          gpu=args.cuda, is_train=False, with_label=True,
+                          elmo_on=args.elmo_on)
     train_data = BatchGen(os.path.join(data_dir, args.train_data),
                           batch_size=batch_size,
                           gpu=args.cuda,
                           with_label=True,
-                          elmo_on=args.elmo_on)
-    dev_data = BatchGen(os.path.join(data_dir, args.dev_data),
-                          batch_size=args.batch_size_eval,
-                          gpu=args.cuda, is_train=False, with_label=True,
                           elmo_on=args.elmo_on)
     logger.info('#' * 20)
     logger.info(opt)
@@ -122,7 +121,7 @@ def main():
             for i in range(0, 10):
                 try:
                     # save on philly
-                    model.save(os.path.join(args.modelDir, 'best_checkpoint.pt'))
+                    model.save(os.path.join(model_dir, 'best_checkpoint.pt'))
                     logger.info('Saved the new best model and prediction')
                     break
                 except:
