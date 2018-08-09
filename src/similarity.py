@@ -442,7 +442,7 @@ class FlatSimilarityWrapper(nn.Module):
         super(FlatSimilarityWrapper, self).__init__()
         self.score_func_str = opt.get('{}_att_type'.format(prefix), 'none').lower()
         self.att_dropout = DropoutWrapper(opt.get('{}_att_dropout'.format(prefix), 0))
-        print(self.score_func_str)
+        #print(self.score_func_str)
         self.score_func = None
         if self.score_func_str == 'bilinear':
             self.score_func = BilinearFlatSim(x1_dim, x2_dim, prefix=prefix, opt=opt, dropout=dropout)
