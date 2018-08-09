@@ -93,7 +93,7 @@ class DocReaderModel(object):
         network_temp = DNetwork(self.opt, adv_embedding)#, training=False)
         network_temp.training = False
         network_temp.cuda() # This solves parameter type mismatch error.
-        start, end, _ = network_temp(batch)
+        start, end = network_temp(batch)
         del network_temp
         torch.cuda.empty_cache()
 
@@ -109,33 +109,29 @@ class DocReaderModel(object):
         self.network.train()
         
         if self.opt['cuda']:
-            y = Variable(batch['start'].cuda(async=True)), Variable(batch['end'].cuda(async=True))
+            y = Variable(batch['start'].cuda(async=True), requires_grad=False), Variable(batch['end'].cuda(async=True), requires_grad=False)
         else:
-            y = Variable(batch['start']), Variable(batch['end'])
+            y = Variable(batch['start'], requires_grad=False), Variable(batch['end'],requires_grad=False)
         
-        # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
+
+
         start, end = self.network(batch)
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
-
         loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y)
         loss_total = loss + loss_adv
         
         self.train_loss.update(loss_total.data[0], len(start))
-        self.optimizer.zero_grad()
         
-        # have all gradients computed automatically. 
-        loss.backward()
-
+        
+	# have all gradients computed automatically.
         self.optimizer.zero_grad()
         loss_total.backward(retain_graph=False)
 
-
-        torch.nn.utils.clip_grad_norm(self.network.parameters(),
-                                      self.opt['grad_clipping'])
+        torch.nn.utils.clip_grad_norm(self.network.parameters(), self.opt['grad_clipping'])
         self.optimizer.step()
         self.updates += 1
-        self.reset_embeddings()
+        #self.reset_embeddings()
         self.eval_embed_transfer = True
 
     def predict(self, batch, top_k=1):
