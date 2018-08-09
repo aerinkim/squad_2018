@@ -20,7 +20,7 @@ class DocReaderModel(object):
         self.updates = state_dict['updates'] if state_dict and 'updates' in state_dict else 0
         self.eval_embed_transfer = True
         self.train_loss = AverageMeter()
-
+        self.embedding = embedding
         self.network = DNetwork(opt, embedding)
         
         if state_dict:
@@ -74,6 +74,33 @@ class DocReaderModel(object):
             self.scheduler = None
         self.total_param = sum([p.nelement() for p in parameters]) - wvec_size
 
+
+    def adversarial_loss(self, batch, loss, embedding, y):
+        self.optimizer.zero_grad()
+        loss.backward(retain_graph=True)
+        grad = embedding.grad
+        grad.detach_()
+        #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
+        #grad = tf.stop_gradient(grad)
+
+        perturb = F.normalize(grad, p=2)* 0.5
+        #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
+
+        adv_embedding = embedding + perturb
+
+        #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
+
+        network_temp = DNetwork(self.opt, adv_embedding)#, training=False)
+        network_temp.training = False
+        network_temp.cuda() # This solves parameter type mismatch error.
+        start, end, _ = network_temp(batch)
+        del network_temp
+        torch.cuda.empty_cache()
+
+        return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
+
+
+
     def update(self, batch):
         """
         The SAN learning algorithm is to learn a function f(Q,P) -> A, at a word level. 
@@ -90,13 +117,20 @@ class DocReaderModel(object):
         start, end = self.network(batch)
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
+
+        loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y)
+        loss_total = loss + loss_adv
         
-        self.train_loss.update(loss.data[0], len(start))
+        self.train_loss.update(loss_total.data[0], len(start))
         self.optimizer.zero_grad()
         
         # have all gradients computed automatically. 
         loss.backward()
-        
+
+        self.optimizer.zero_grad()
+        loss_total.backward(retain_graph=False)
+
+
         torch.nn.utils.clip_grad_norm(self.network.parameters(),
                                       self.opt['grad_clipping'])
         self.optimizer.step()
