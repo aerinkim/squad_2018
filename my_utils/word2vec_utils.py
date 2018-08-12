@@ -24,19 +24,4 @@ def build_embedding(path, targ_vocab, wv_dim):
             if token in w2id:
                 emb[w2id[token]] = [float(v) for v in elems[-wv_dim:]]
 
-    v = emb
-    # Implement all-but-the-top
-    mu = np.mean(v, axis=0)
-    v_tilde = v - mu  
-
-    D=3
-    # Compute the PCA components
-    pca = PCA(n_components=D)
-    u = pca.fit_transform(v.T)
-
-    # Postprocess
-    for w in range(v_tilde.shape[0]):
-        for i in range(D):
-            v_tilde[w, :] = v_tilde[w, :] - u[:, i].dot(v[w]) * u[:, i].T
-
-    return v_tilde
+    return emb
