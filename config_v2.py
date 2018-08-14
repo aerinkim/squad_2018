@@ -131,7 +131,7 @@ def data_config(parser):
     parser.add_argument('--dev_gold', default='dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
-    parser.add_argument('--glove', default='glove.840B.300d.txt',
+    parser.add_argument('--glove', default='all_but_the_top.840B.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
                         help='word vector dimension.')
@@ -159,7 +159,7 @@ def train_config(parser):
     parser.add_argument('--learning_rate', type=float, default=0.002)
     parser.add_argument('--momentum', type=float, default=0)
     parser.add_argument('--vb_dropout', action='store_false')
-    parser.add_argument('--dropout_p', type=float, default=0.4)
+    parser.add_argument('--dropout_p', type=float, default=0.1)
     parser.add_argument('--dropout_emb', type=float, default=0.4)
     parser.add_argument('--dropout_cov', type=float, default=0.4)
     parser.add_argument('--dropout_elmo', type=float, default=0.5)
