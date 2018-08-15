@@ -159,7 +159,7 @@ def train_config(parser):
     parser.add_argument('--learning_rate', type=float, default=0.002)
     parser.add_argument('--momentum', type=float, default=0)
     parser.add_argument('--vb_dropout', action='store_false')
-    parser.add_argument('--dropout_p', type=float, default=0.4)
+    parser.add_argument('--dropout_p', type=float, default=0.1)
     parser.add_argument('--dropout_emb', type=float, default=0.4)
     parser.add_argument('--dropout_cov', type=float, default=0.4)
     parser.add_argument('--dropout_elmo', type=float, default=0.5)
