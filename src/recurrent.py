@@ -136,7 +136,10 @@ class ContextualEmbed(nn.Module):
         x_hiddens = emb(x_idx)
         lengths = x_mask.data.eq(0).long().sum(1).squeeze()
         lens, indices = torch.sort(lengths, 0, True)
-        output1, _ = self.rnn1(pack(x_hiddens[indices], lens.tolist(), batch_first=True))
+
+        packed_input = pack(x_hiddens[indices], lens.tolist(), batch_first=True)
+        #import pdb; pdb.set_trace()
+        output1, _ = self.rnn1(packed_input)
         output2, _ = self.rnn2(output1)
         output1 = unpack(output1, batch_first=True)[0]
         output2 = unpack(output2, batch_first=True)[0]

@@ -28,7 +28,7 @@ class LexiconEncoder(nn.Module):
                 for p in self.embedding.parameters():
                     p.requires_grad = False
             else:
-                assert opt['tune_partial'] < embedding.size(0)
+                assert opt['tune_partial'] <= embedding.size(0)
                 fixed_embedding = embedding[opt['tune_partial']:]
                 self.register_buffer('fixed_embedding', fixed_embedding)
                 self.fixed_embedding = fixed_embedding
