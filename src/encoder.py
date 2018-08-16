@@ -14,7 +14,7 @@ from allennlp.modules.elmo import Elmo
 
 class LexiconEncoder(nn.Module):
     def create_embed(self, vocab_size, embed_dim, padding_idx=0):
-        return nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx)
+        return nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx, max_norm =10)
 
     def create_word_embed(self, embedding=None, opt={}, prefix='wemb'):
         vocab_size = opt.get('vocab_size', 1)
@@ -130,6 +130,10 @@ class LexiconEncoder(nn.Module):
         drnn_input_list = []
         qrnn_input_list = []
         emb = self.embedding if self.training else self.eval_embed
+
+        #embedding normalization for Adversarial Training
+        #emb = F.normalize(emb, p=2, dim=0)
+
         doc_tok = self.patch(batch['doc_tok'])
         doc_mask = self.patch(batch['doc_mask'])
         query_tok = self.patch(batch['query_tok'])
