@@ -37,7 +37,7 @@ def model_config(parser):
     parser.add_argument('--prealign_activation', type=str, default='relu')
 
     parser.add_argument('--pwnn_on', action='store_false')
-    parser.add_argument('--pwnn_hidden_size', type=int, default=125)
+    parser.add_argument('--pwnn_hidden_size', type=int, default=300)
 
     # ELMo config
     parser.add_argument('--elmo_on', action='store_true')
@@ -48,7 +48,7 @@ def model_config(parser):
     parser.add_argument('--elmo_self_att_on', action='store_true')
 
     ##contextual encoding
-    parser.add_argument('--contextual_hidden_size', type=int, default=125)
+    parser.add_argument('--contextual_hidden_size', type=int, default=300)
     parser.add_argument('--contextual_cell_type', type=str, default='lstm')
     parser.add_argument('--contextual_weight_norm_on', action='store_true')
     parser.add_argument('--contextual_maxout_on', action='store_true')
@@ -57,7 +57,7 @@ def model_config(parser):
     parser.add_argument('--contextual_num_layers', type=int, default=2)
 
     ## mem setting
-    parser.add_argument('--msum_hidden_size', type=int, default=125)
+    parser.add_argument('--msum_hidden_size', type=int, default=300)
     parser.add_argument('--msum_cell_type', type=str, default='lstm')
     parser.add_argument('--msum_weight_norm_on', action='store_true')
     parser.add_argument('--msum_maxout_on', action='store_true')
@@ -67,7 +67,7 @@ def model_config(parser):
 
     # attention
     parser.add_argument('--deep_att_lexicon_input_on', action='store_false')
-    parser.add_argument('--deep_att_hidden_size', type=int, default=125)
+    parser.add_argument('--deep_att_hidden_size', type=int, default=300)
     parser.add_argument('--deep_att_sim_func', type=str, default='dotproductproject')
     parser.add_argument('--deep_att_activation', type=str, default='relu')
     parser.add_argument('--deep_att_norm_on', action='store_false')
@@ -78,7 +78,7 @@ def model_config(parser):
 
     # self attn
     parser.add_argument('--self_attention_on', action='store_false')
-    parser.add_argument('--self_att_hidden_size', type=int, default=125)
+    parser.add_argument('--self_att_hidden_size', type=int, default=300)
     parser.add_argument('--self_att_sim_func', type=str, default='dotproductproject')
     parser.add_argument('--self_att_activation', type=str, default='relu')
     parser.add_argument('--self_att_norm_on', action='store_false')
@@ -100,7 +100,7 @@ def model_config(parser):
     parser.add_argument('--decoder_mem_type', type=int, default=3)
     parser.add_argument('--decoder_mem_drop_p', type=float, default=0.4)
     parser.add_argument('--decoder_opt', type=int, default=0)
-    parser.add_argument('--decoder_att_hidden_size', type=int, default=125)
+    parser.add_argument('--decoder_att_hidden_size', type=int, default=300)
     parser.add_argument('--decoder_att_type', type=str, default='bilinear',
                         help='bilinear/simple/defualt')
     parser.add_argument('--decoder_rnn_type', type=str, default='gru',
@@ -131,7 +131,7 @@ def data_config(parser):
     parser.add_argument('--dev_gold', default='dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
-    parser.add_argument('--glove', default='glove.840B.300d.txt',
+    parser.add_argument('--glove', default='all_but_the_top.D2.840B.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
                         help='word vector dimension.')
@@ -153,7 +153,7 @@ def train_config(parser):
     parser.add_argument('--expect_version', default='v2.0')
     parser.add_argument('--resume')
     parser.add_argument('--optimizer', default='adamax',
-                        help='supported optimizer: adamax, sgd, adadelta, adam')
+                        help='supported optimizer: adamax, sgd, adadelta, adam, ams')
     parser.add_argument('--grad_clipping', type=float, default=10)
     parser.add_argument('--weight_decay', type=float, default=0)
     parser.add_argument('--learning_rate', type=float, default=0.002)

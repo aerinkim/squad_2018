@@ -52,6 +52,13 @@ class DocReaderModel(object):
             self.optimizer = optim.Adadelta(parameters,
                                             opt['learning_rate'],
                                             rho=0.95)
+
+        elif opt['optimizer'] == 'ams':
+            self.optimizer = optim.Adam(parameters,
+                                        opt['learning_rate'],
+                                        weight_decay=opt['weight_decay'],
+                                        amsgrad=True)
+
         else:
             raise RuntimeError('Unsupported optimizer: %s' % opt['optimizer'])
         if state_dict and 'optimizer' in state_dict:
