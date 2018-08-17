@@ -13,13 +13,14 @@ from .sub_layers import PositionwiseNN
 from allennlp.modules.elmo import Elmo
 
 class LexiconEncoder(nn.Module):
-    def create_embed(self, vocab_size, embed_dim, padding_idx=0):
-        return nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx)
+    def create_embed(self, vocab_size, embed_dim, embedding_max_norm=None, padding_idx=0):
+        return nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx, max_norm = embedding_max_norm)
 
     def create_word_embed(self, embedding=None, opt={}, prefix='wemb'):
         vocab_size = opt.get('vocab_size', 1)
         embed_dim = opt.get('{}_dim'.format(prefix), 300)
-        self.embedding = self.create_embed(vocab_size, embed_dim)
+        embedding_max_norm = opt.get('embedding_max_norm', None)
+        self.embedding = self.create_embed(vocab_size, embed_dim, embedding_max_norm)
         if embedding is not None:
             self.embedding.weight.data = embedding
             if opt['fix_embeddings'] or opt['tune_partial'] == 0:
@@ -28,7 +29,7 @@ class LexiconEncoder(nn.Module):
                 for p in self.embedding.parameters():
                     p.requires_grad = False
             else:
-                assert opt['tune_partial'] < embedding.size(0)
+                assert opt['tune_partial'] <= embedding.size(0)
                 fixed_embedding = embedding[opt['tune_partial']:]
                 self.register_buffer('fixed_embedding', fixed_embedding)
                 self.fixed_embedding = fixed_embedding
@@ -130,6 +131,10 @@ class LexiconEncoder(nn.Module):
         drnn_input_list = []
         qrnn_input_list = []
         emb = self.embedding if self.training else self.eval_embed
+
+        #embedding normalization for Adversarial Training
+        #emb = F.normalize(emb, p=2, dim=0)
+
         doc_tok = self.patch(batch['doc_tok'])
         doc_mask = self.patch(batch['doc_mask'])
         query_tok = self.patch(batch['query_tok'])

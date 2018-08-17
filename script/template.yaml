@@ -5,6 +5,7 @@ auth:
   cluster: CLUSTER_NAME
   docker_repo: philly/jobs/test/pytorch
   docker_tag: pytorch0.4.0-py36-mrc
+
 code:
   code_upload: True
   local_dir: ./
@@ -13,8 +14,23 @@ data:
   data_upload: False
   remote_dir: /hdfs/VC_NAME/USER_NAME/DATA_DIR/
 
-jobs:
-  - name: JOB_NAME
+search:
+  job_template:
+    name: "exp_{embedding_max_norm:d}_{self_att_hidden_size:d}_{deep_att_hidden_size:d}"
     n_gpu: 1
-    args: "ELMO_ON --epoches EPOCHES --batch_size BATCH_SIZE --batch_size_eval BATCH_SIZE_EVAL --data_dir /hdfs/VC_NAME/USER_NAME/DATA_DIR/ --model_dir /hdfs/VC_NAME/USER_NAME/MODEL_DIR --philly_on"
+    args:
+      "ELMO_ON --epoches EPOCHES --batch_size BATCH_SIZE --batch_size_eval BATCH_SIZE_EVAL --data_dir /hdfs/VC_NAME/USER_NAME/DATA_DIR/ --model_dir /hdfs/VC_NAME/USER_NAME/MODEL_DIR --philly_on"
     entry_point: MAIN_FUNC
+  type: random
+  max_trials: 40
+  params:
+    - name: deep_att_hidden_size
+      spec: discrete
+      values: [125,200,250,300]
+    - name: self_att_hidden_size
+      spec: discrete
+      values: [125,200,250,300]
+    - name: embedding_max_norm
+      spec: discrete
+      values: [5,10,15]
+

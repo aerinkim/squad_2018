@@ -18,7 +18,7 @@ parser.add_argument('--vc', default='pnrsy')
 parser.add_argument('--data_dir', default='squad_elmo/v2.0', help='based on user root')
 parser.add_argument('--model_dir', default='squad_elmo/v2.0/checkpoint', help='based on user root')
 parser.add_argument('--cluster', default='rr1')
-parser.add_argument('--user', default='wli')
+parser.add_argument('--user', default='ahkim')
 parser.add_argument('--elmo_on', default='true', help='str "true" if want enable elmo')
 
 args = parser.parse_args()

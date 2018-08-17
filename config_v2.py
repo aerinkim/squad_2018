@@ -11,6 +11,7 @@ def model_config(parser):
     parser.add_argument('--wemb_dim', type=int, default=300)
     parser.add_argument('--covec_on', action='store_false')
     parser.add_argument('--embedding_dim', type=int, default=300)
+    parser.add_argument('--embedding_max_norm', type=int, default=None)
     parser.add_argument('--philly_on', action='store_true')
 
     # pos
@@ -131,7 +132,7 @@ def data_config(parser):
     parser.add_argument('--dev_gold', default='dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
-    parser.add_argument('--glove', default='glove.840B.300d.txt',
+    parser.add_argument('--glove', default='all_but_the_top.840B.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
                         help='word vector dimension.')
@@ -173,8 +174,10 @@ def train_config(parser):
     parser.add_argument('--multi_step_lr', type=str, default='10,20,30')
     parser.add_argument('--lr_gamma', type=float, default=0.5)
     parser.add_argument('--scheduler_type', type=str, default='ms', help='ms/rop/exp')
-    parser.add_argument('--fix_embeddings', action='store_true', help='if true, `tune_partial` will be ignored. This will remove the gradient to the embedding layer completely.')
-    parser.add_argument('--tune_partial', type=int, default=1000, help='finetune top-x embeddings (including <PAD>, <UNK>). This will remove the gradient to all embeddings but the x most frequent words.')
+
+    parser.add_argument('--fix_embeddings', default = False, action='store_true', help='if true, `tune_partial` will be ignored. This will remove the gradient to the embedding layer completely.')
+    parser.add_argument('--tune_partial', type=int, default=89571, help='finetune top-x embeddings (including <PAD>, <UNK>). This will remove the gradient to all embeddings but the x most frequent words.')    
+
     parser.add_argument('--model_dir', default='checkpoint_v2')
     parser.add_argument('--seed', type=int, default=1023,
                         help='random seed for data shuffling, embedding init, etc.')
