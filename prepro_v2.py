@@ -77,7 +77,7 @@ def main():
     
     # build vocab
     logger.info('Build vocabulary')
-    vocab, vocab_tag, vocab_ner = build_vocab(train_data + valid_data, glove_vocab, sort_all=args.sort_all, thread=args.threads, clean_on=True)
+    vocab, vocab_tag, vocab_ner = build_vocab(train_data, glove_vocab, sort_all=args.sort_all, thread=args.threads, clean_on=True)
     logger.info('size vocab/tag/ner are: {}, {}, {}'.format(len(vocab), len(vocab_tag), len(vocab_ner)))
     meta_path = os.path.join(args.data_dir, args.meta)
     logger.info('building embedding')

@@ -24,16 +24,15 @@ def load_meta(opt, meta_path):
 
 class BatchGen:
     """A class to hold the information needed for a training batch"""
-    def __init__(self, data_path, batch_size, gpu, is_train=True, 
+    def __init__(self, data, batch_size, gpu, is_train=True, 
                  doc_maxlen=1000, with_label=False, dropout_w=0.05, dw_type=0,
                  elmo_on=False):
         self.batch_size = batch_size
         self.doc_maxlen = doc_maxlen
         self.is_train = is_train
         self.gpu = gpu
-        self.data_path = data_path
         self.elmo_on = elmo_on
-        self.data = self.load(self.data_path, is_train, doc_maxlen)
+        self.data = data
         # Shuffling for training
         if is_train:
             indices = list(range(len(self.data)))
