@@ -81,7 +81,7 @@ class DocReaderModel(object):
         grad.detach_()
         #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
         #grad = tf.stop_gradient(grad)
-        perturb = grad 
+        perturb = F.normalize(grad, p=2, dim =1) * 0.5
         #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
         adv_embedding = embedding + perturb
         #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
