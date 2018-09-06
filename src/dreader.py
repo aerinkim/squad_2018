@@ -13,7 +13,7 @@ from .classifier import Classifier
 
 class DNetwork(nn.Module):
     """Network for SAN doc reader."""
-    def __init__(self, opt, embedding=None, padding_idx=0):
+    def __init__(self, opt, embedding=None, adversarial=False, new_doc_mem=None, padding_idx=0):
         super(DNetwork, self).__init__()
         my_dropout = DropoutWrapper(opt['dropout_p'], opt['vb_dropout'])
         self.dropout = my_dropout
@@ -84,6 +84,10 @@ class DNetwork(nn.Module):
         else:
             self.classifier = None
         self.opt = opt
+        
+        #self.query_mem = None
+        self.new_doc_mem = new_doc_mem
+        self.adversarial = adversarial
 
     def forward(self, batch):
         doc_input, query_input,\
@@ -133,6 +137,7 @@ class DNetwork(nn.Module):
         query_mem_hiddens = self.dropout(query_mem_hiddens)
         query_list = query_represenations + [query_mem_hiddens]
         doc_list = doc_represenations
+
         if self.opt['elmo_on'] and self.opt['elmo_att_on']:
             idx = -2 if self.opt['elmo_self_att_on'] else -1
             query_att_input = torch.cat([query_emb, query_cove_high, query_elmo[idx]] + query_represenations, 2)
@@ -159,9 +164,43 @@ class DNetwork(nn.Module):
             doc_mem = doc_mem_hiddens
         query_mem = self.query_sum_attn(query_mem_hiddens, query_mask)
         doc_mem = self.dropout(doc_mem)
-        start_scores, end_scores = self.decoder(doc_mem, query_mem, doc_mask)
-        pred_score = None
-        if self.classifier is not None:
-            doc_sum = self.doc_sum_attn(doc_mem, doc_mask)
-            pred_score = F.sigmoid(self.classifier(doc_sum, query_mem, doc_mask))
+
+
+        self.doc_mem = doc_mem
+        self.doc_mem.retain_grad()
+        self.query_mem = query_mem
+
+
+        # Implement normalizing and see how the perf differs
+        if self.adversarial == True:
+
+            start_scores, end_scores = self.decoder(self.new_doc_mem, query_mem, doc_mask)
+            pred_score = None
+
+            if self.classifier is not None:
+                # doc_mem.shape: torch.Size([32, 193, 400])
+                # query_mem.shape: torch.Size([32, 400])
+                doc_sum = self.doc_sum_attn(self.new_doc_mem, doc_mask)
+
+                pred_score = F.sigmoid(self.classifier(doc_sum, query_mem, doc_mask))
+
+
+        else:
+
+            start_scores, end_scores = self.decoder(doc_mem, query_mem, doc_mask)
+            pred_score = None
+
+
+
+            if self.classifier is not None:
+                # doc_mem.shape: torch.Size([32, 193, 400])
+                # query_mem.shape: torch.Size([32, 400])
+                doc_sum = self.doc_sum_attn(doc_mem, doc_mask)
+
+                pred_score = F.sigmoid(self.classifier(doc_sum, query_mem, doc_mask))
+        
+        #import pdb; pdb.set_trace()
         return start_scores, end_scores, pred_score
+
+
+

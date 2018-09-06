@@ -20,7 +20,7 @@ class DocReaderModel(object):
         self.updates = state_dict['updates'] if state_dict and 'updates' in state_dict else 0
         self.eval_embed_transfer = True
         self.train_loss = AverageMeter()
-        self.embedding = embedding
+
         self.network = DNetwork(opt, embedding)
         
         if state_dict:
@@ -74,24 +74,27 @@ class DocReaderModel(object):
             self.scheduler = None
         self.total_param = sum([p.nelement() for p in parameters]) - wvec_size
 
-    def adversarial_loss(self, batch, loss, embedding, y):
+
+    def adversarial_loss(self, batch, loss, doc_mem, y, label):
         self.optimizer.zero_grad()
         loss.backward(retain_graph=True)
-        grad = embedding.grad
+        grad = doc_mem.grad
         grad.detach_()
         #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
         #grad = tf.stop_gradient(grad)
+        doc_mem = F.normalize(doc_mem, p=2, dim =2)
         perturb = F.normalize(grad, p=2, dim =1) * 0.5
         #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
-        adv_embedding = embedding + perturb
-        #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
-        network_temp = DNetwork(self.opt, adv_embedding)#, training=False)
+        adv_embedding = doc_mem + perturb
+        #print(doc_mem.size(), doc_mem.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
+        network_temp = DNetwork(self.opt, adversarial=True, new_doc_mem=adv_embedding )#, training=False)
         network_temp.training = False
         network_temp.cuda() # This solves parameter type mismatch error.
-        start, end, _ = network_temp(batch)
+        start, end, pred = network_temp(batch)
         del network_temp
         torch.cuda.empty_cache()
-        return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
+
+        return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1) #loss_fn(embedded + perturb)
 
 
     def update(self, batch):
@@ -116,7 +119,8 @@ class DocReaderModel(object):
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
 
-        loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y)
+        #import pdb; pdb.set_trace()
+        loss_adv = self.adversarial_loss(batch, loss, self.network.doc_mem, y, label)
         loss_total = loss + loss_adv
 
         if batch['with_label'] and self.opt.get('extra_loss_on', False):
