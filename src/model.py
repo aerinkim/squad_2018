@@ -74,10 +74,10 @@ class DocReaderModel(object):
             self.scheduler = None
         self.total_param = sum([p.nelement() for p in parameters]) - wvec_size
 
-    def adversarial_loss(self, batch, loss, embedding, y):
+    def adversarial_loss(self, batch, loss, embedding, y, label):
         self.optimizer.zero_grad()
         loss.backward(retain_graph=True)
-        grad = torch.sign(embedding.grad)
+        grad = embedding.grad
         grad.detach_()
         #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
         #grad = tf.stop_gradient(grad)
@@ -88,10 +88,11 @@ class DocReaderModel(object):
         network_temp = DNetwork(self.opt, adv_embedding)#, training=False)
         network_temp.training = False
         network_temp.cuda() # This solves parameter type mismatch error.
-        start, end, _ = network_temp(batch)
+        start, end, pred = network_temp(batch)
         del network_temp
         torch.cuda.empty_cache()
-        return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) #loss_fn(embedded + perturb)
+
+        return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1) #loss_fn(embedded + perturb)
 
 
     def update(self, batch):
@@ -116,7 +117,7 @@ class DocReaderModel(object):
         
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
 
-        loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y)
+        loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y, label)
         loss_total = loss + loss_adv
 
         if batch['with_label'] and self.opt.get('extra_loss_on', False):
