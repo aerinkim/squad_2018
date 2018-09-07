@@ -96,7 +96,7 @@ def model_config(parser):
     parser.add_argument('--san_on', action='store_true')
     parser.add_argument('--max_len', type=int, default=5)
     parser.add_argument('--decoder_ptr_update_on', action='store_true')
-    parser.add_argument('--decoder_num_turn', type=int, default=5)
+    parser.add_argument('--decoder_num_turn', type=int, default=10)
     parser.add_argument('--decoder_mem_type', type=int, default=3)
     parser.add_argument('--decoder_mem_drop_p', type=float, default=0.4)
     parser.add_argument('--decoder_opt', type=int, default=0)
