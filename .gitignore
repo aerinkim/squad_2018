@@ -1,7 +1,10 @@
 *.pyc
 *.DS_Store
 *~
+*.zip
 data/
+data_v2/*
+checkpoint_v2/*
 *.tar.gz
 *.egg-info
 checkpoint*
