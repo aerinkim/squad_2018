@@ -14,7 +14,7 @@ from allennlp.modules.elmo import Elmo
 
 class LexiconEncoder(nn.Module):
     def create_embed(self, vocab_size, embed_dim, padding_idx=0):
-        return nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx, max_norm=10)
+        return nn.Embedding(vocab_size, embed_dim, padding_idx=padding_idx)
 
     def create_word_embed(self, embedding=None, opt={}, prefix='wemb'):
         vocab_size = opt.get('vocab_size', 1)
