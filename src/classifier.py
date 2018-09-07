@@ -24,11 +24,13 @@ class Classifier(nn.Module):
 
         
         if self.merge_opt == 1:
-            self.proj = nn.Linear(x_size * 4, 500)
-            self.proj2 = nn.Linear(500, y_size)
+            self.proj = nn.Linear(x_size * 4, 1000)
+            self.proj15 = nn.Linear(1000, 1000)
+            self.proj2 = nn.Linear(1000, y_size)
         else:
-            self.proj = nn.Linear(x_size * 2, 500)
-            self.proj2 = nn.Linear(500, y_size)
+            self.proj = nn.Linear(x_size * 2, 1000)
+            self.proj15 = nn.Linear(1000, 1000)
+            self.proj2 = nn.Linear(1000, y_size)
 
         if self.weight_norm_on:
             self.proj2 = weight_norm(self.proj2)
@@ -45,6 +47,10 @@ class Classifier(nn.Module):
 
         x = self.dropout(x)
         scores = self.proj(x)
+        scores = self.dropout(scores)
+        scores = self.relu(scores)
+        scores = self.proj15(scores)
+        scores = self.dropout(scores)
         scores = self.relu(scores)
         scores = self.proj2(scores)
 
