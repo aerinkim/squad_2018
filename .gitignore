@@ -1,4 +1,6 @@
 *.pyc
+*.out
+*.txt
 *.DS_Store
 *~
 *.zip

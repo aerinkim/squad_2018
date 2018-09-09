@@ -47,10 +47,10 @@ class Classifier(nn.Module):
 
         x = self.dropout(x)
         scores = self.proj(x)
-        scores = self.dropout(scores)
+        #scores = self.dropout(scores)
         scores = self.relu(scores)
         scores = self.proj15(scores)
-        scores = self.dropout(scores)
+        #scores = self.dropout(scores)
         scores = self.relu(scores)
         scores = self.proj2(scores)
 
