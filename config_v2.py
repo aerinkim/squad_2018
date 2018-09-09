@@ -111,7 +111,7 @@ def model_config(parser):
 
     # extra loss
     parser.add_argument('--classifier_merge_opt', type=int, default=0)
-    parser.add_argument('--classifier_dropout_p', type=float, default=0.4)
+    parser.add_argument('--classifier_dropout_p', type=float, default=0.1)
     parser.add_argument('--classifier_weight_norm_on', action='store_false')
     parser.add_argument('--classifier_gamma', type=float, default=1)
     parser.add_argument('--classifier_threshold', type=float, default=0.5)
@@ -131,7 +131,7 @@ def data_config(parser):
     parser.add_argument('--dev_gold', default='dev-v2.0.json',
                         help='path to preprocessed validation data file.')
     parser.add_argument('--covec_path', default='MT-LSTM.pt')
-    parser.add_argument('--glove', default='all_but_the_top.840B.txt',
+    parser.add_argument('--glove', default='glove.840B.300d.txt',
                         help='path to word vector file.')
     parser.add_argument('--glove_dim', type=int, default=300,
                         help='word vector dimension.')
