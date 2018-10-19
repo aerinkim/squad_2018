@@ -64,6 +64,7 @@ def compute_exact(a_gold, a_pred):
   return int(normalize_answer(a_gold) == normalize_answer(a_pred))
 
 def compute_f1(a_gold, a_pred):
+  # what happens when there is no answer?
   gold_toks = get_tokens(a_gold)
   pred_toks = get_tokens(a_pred)
   common = collections.Counter(gold_toks) & collections.Counter(pred_toks)
@@ -73,8 +74,8 @@ def compute_f1(a_gold, a_pred):
     return int(gold_toks == pred_toks)
   if num_same == 0:
     return 0
-  precision = 1.0 * num_same / len(pred_toks)
-  recall = 1.0 * num_same / len(gold_toks)
+  precision = 1.0 * num_same / len(pred_toks) ####################
+  recall = 1.0 * num_same / len(gold_toks)    ####################
   f1 = (2 * precision * recall) / (precision + recall)
   return f1
 
@@ -100,6 +101,8 @@ def get_raw_scores(dataset, preds):
   return exact_scores, f1_scores
 
 def apply_no_ans_threshold(scores, na_probs, qid_to_has_ans, na_prob_thresh):
+  # when no_answer probability is more than (threshold),
+  # even if your answer is wrong, then you will still get the point!!!
   new_scores = {}
   for qid, s in scores.items():
     pred_na = na_probs[qid] > na_prob_thresh
@@ -243,10 +246,12 @@ def main():
   has_ans_qids = [k for k, v in qid_to_has_ans.items() if v]
   no_ans_qids = [k for k, v in qid_to_has_ans.items() if not v]
   exact_raw, f1_raw = get_raw_scores(dataset, preds)
+  ##########################################
   exact_thresh = apply_no_ans_threshold(exact_raw, na_probs, qid_to_has_ans,
-                                        OPTS.na_prob_thresh)
+                                        OPTS.na_prob_thresh)#################################
   f1_thresh = apply_no_ans_threshold(f1_raw, na_probs, qid_to_has_ans,
                                      OPTS.na_prob_thresh)
+  
   out_eval = make_eval_dict(exact_thresh, f1_thresh)
   if has_ans_qids:
     has_ans_eval = make_eval_dict(exact_thresh, f1_thresh, qid_list=has_ans_qids)
