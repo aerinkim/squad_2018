@@ -119,7 +119,7 @@ class DocReaderModel(object):
 
         loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y, label)
         loss_total = loss + loss_adv
-
+        print("loss diff:",loss_adv-loss)
         if batch['with_label'] and self.opt.get('extra_loss_on', False):
             loss_total = loss_total + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
 
