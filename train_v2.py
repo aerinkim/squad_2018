@@ -85,6 +85,7 @@ def main():
         train_data.reset()
         start = datetime.now()
         for i, batch in enumerate(train_data):
+            #print(batch)
             model.update(batch)
             if (model.updates) % args.log_per_updates == 0 or model.updates == 1:
                 logger.info('updates[{0:6}] train loss[{1:.5f}] remaining[{2}]'.format(

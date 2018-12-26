@@ -10,7 +10,7 @@ class PositionwiseNN(nn.Module):
         self.w_1 = nn.Conv1d(hdim, hdim, 1)
         self.dropout = dropout
 
-    def forward(self, x):
+    def forward(self, x): #[N, JX, d_all]
         output = F.relu(self.w_0(x.transpose(1, 2)))
         output = self.dropout(output)
         output = self.w_1(output)

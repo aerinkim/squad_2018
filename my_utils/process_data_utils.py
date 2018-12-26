@@ -45,7 +45,7 @@ def raw_txt_func(toks):
 def match_func(question, context):
     counter = Counter(w.text.lower() for w in context)
     total = sum(counter.values())
-    freq = [counter[w.text.lower()] / total for w in context]
+    freq = [counter[w.text.lower()] / total for w in context] # frequency of itself. how important that word is. When you solve SAT, frequent words is the topic.
     question_word = {w.text for w in question}
     question_lower = {w.text.lower() for w in question}
     question_lemma = {w.lemma_ if w.lemma_ != '-PRON-' else w.text.lower() for w in question}
@@ -118,6 +118,7 @@ def build_data(data, vocab, vocab_tag, vocab_ner, fout, is_train, thread=16):
 
     passages = [reform_text(sample['context']) for sample in data]
     passage_tokened = [doc for doc in nlp.pipe(passages, batch_size=1000, n_threads=thread)]
+    print(len(passage_tokened))
     logger.info('Done with document tokenize')
 
     question_list = [reform_text(sample['question']) for sample in data]

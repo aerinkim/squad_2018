@@ -79,9 +79,11 @@ class DocReaderModel(object):
         loss.backward(retain_graph=True)
         grad = embedding.grad
         grad.detach_()
+        print("grad:", grad, grad.size())
         #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
         #grad = tf.stop_gradient(grad)
         perturb = F.normalize(grad, p=2, dim =1) * 0.5
+        print("perturb:",perturb)
         #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
         adv_embedding = embedding + perturb
         #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
@@ -119,7 +121,9 @@ class DocReaderModel(object):
 
         loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y, label)
         loss_total = loss + loss_adv
+        
         print("loss diff:",loss_adv-loss)
+        
         if batch['with_label'] and self.opt.get('extra_loss_on', False):
             loss_total = loss_total + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
 
