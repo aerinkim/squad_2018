@@ -149,6 +149,7 @@ class LexiconEncoder(nn.Module):
 
         doc_cove_low, doc_cove_high = None, None
         query_cove_low, query_cove_high = None, None
+        # low, high difference? 
         if self.opt['covec_on']:
             doc_cove_low, doc_cove_high = self.ContextualEmbed(doc_tok, doc_mask)
             query_cove_low, query_cove_high = self.ContextualEmbed(query_tok, query_mask)
@@ -215,4 +216,5 @@ class LexiconEncoder(nn.Module):
             query_input = self.que_pwnn(query_input)
             doc_input = self.dropout(doc_input)
             query_input = self.dropout(query_input)
+        # difference between doc_input & doc_emb?
         return doc_input, query_input, doc_emb, query_emb, doc_cove_low, doc_cove_high, query_cove_low, query_cove_high, doc_mask, query_mask, doc_elmo, query_elmo

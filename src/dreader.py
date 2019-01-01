@@ -97,7 +97,7 @@ class DNetwork(nn.Module):
         query_list.append(query_input)
         doc_list.append(doc_input)
 
-        # doc encode
+        # Contextual Encoding Layer
         doc_represenations = []
         for i, doc_encoder in enumerate(self.doc_encoders):
             if i == 0:

@@ -6,11 +6,11 @@ import numpy as np
 import logging
 import math
 from collections import defaultdict
-
 from torch.optim.lr_scheduler import *
 from torch.autograd import Variable
 from my_utils.utils import AverageMeter
 from .dreader import DNetwork
+#from .adversarial_loss import *
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,8 @@ class DocReaderModel(object):
         self.train_loss = AverageMeter()
         self.embedding = embedding
         self.network = DNetwork(opt, embedding)
-        
+        #self.adversarial_loss = adversarial_loss
+
         if state_dict:
             new_state = set(self.network.state_dict().keys())
             for k in list(state_dict['network'].keys()):
@@ -74,27 +75,40 @@ class DocReaderModel(object):
             self.scheduler = None
         self.total_param = sum([p.nelement() for p in parameters]) - wvec_size
 
-    def adversarial_loss(self, batch, loss, embedding, y, label):
-        self.optimizer.zero_grad()
-        loss.backward(retain_graph=True)
-        grad = embedding.grad
-        grad.detach_()
-        print("grad:", grad, grad.size())
-        #grad, = tf.gradients(loss, embedded, aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N)
-        #grad = tf.stop_gradient(grad)
-        perturb = F.normalize(grad, p=2, dim =1) * 0.5
-        print("perturb:",perturb)
-        #perturb = adv_lib._scale_l2(grad, FLAGS.perturb_norm_length)
-        adv_embedding = embedding + perturb
-        #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
-        network_temp = DNetwork(self.opt, adv_embedding)#, training=False)
-        network_temp.training = False
-        network_temp.cuda() # This solves parameter type mismatch error.
-        start, end, pred = network_temp(batch)
-        del network_temp
-        torch.cuda.empty_cache()
 
-        return F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1]) + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1) #loss_fn(embedded + perturb)
+    def adversarial_loss(self, batch, loss, y, label):
+        """
+        Input: 
+                - batch: batch that is shared with update method. In this code, batch contains not only embedding but also other things such as POS tag, NER etc.
+                - loss : loss function that we will propagate the shit. 
+        Output:
+                - adv_loss scalar tensor.
+        """
+        self.optimizer.zero_grad() # You want to remove grads acculated from previous batch.
+        loss.backward(retain_graph=True) # backprop. Every derivative of realted variables of loss is caluclated.
+        print(loss)
+
+        embedding = self.network.lexicon_encoder.embedding
+        grad = embedding.weight.grad.data # d(loss)/d((embedding) # You need to call .weight. You can't call embeddign.grad
+        grad.detach_() # This stops optimizer to optimize embdding. 
+
+        #print("grad:", grad, grad.size())
+        perturb = F.normalize(grad, p=2, dim =1) * 0.5
+        #print("perturb:",perturb)
+        
+        adv_embedding = embedding.weight + perturb
+        #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
+
+        # forward propagate. You are not evaluating here .You are training weights now using the perturbed input.
+        original_emb = self.network.lexicon_encoder.eval_embed.weight.data
+        # notice this isot evalulate_embedding
+        self.network.lexicon_encoder.eval_embed.weight.data = adv_embedding
+        
+        adv_start, adv_end, adv_pred = self.network(batch)
+               
+        #revert it back to the original embedding
+        self.network.lexicon_encoder.eval_embed.weight.data = original_emb 
+        return F.cross_entropy(adv_start, y[0]) + F.cross_entropy(adv_end, y[1]) + F.binary_cross_entropy(adv_pred, label) * self.opt.get('classifier_gamma', 1) 
 
 
     def update(self, batch):
@@ -103,7 +117,6 @@ class DocReaderModel(object):
         The training data is a set of the query, passage and the answer tuples <Q,P,A>.
         """
         self.network.train()
-
         if self.opt['cuda']:
             y = Variable(batch['start'].cuda(async=True), requires_grad=False), Variable(batch['end'].cuda(async=True), requires_grad=False)
             if self.opt.get('extra_loss_on', False):
@@ -113,27 +126,25 @@ class DocReaderModel(object):
             if self.opt.get('extra_loss_on', False):
                 label = Variable(batch['label'], requires_grad=False)
 
-
-        # 'start': start of the answer span - one token, 'end': end of the answer span - one token.
-        start, end, pred = self.network(batch)
+        # span prediction: start- a start token of the answer span. end - an end token of the answer span. pred - binary prediction whether or not the question is answerable.
+        start, end, pred = self.network(batch) # forward propagate
         
+        # This is the loss of the batch. plain vanila. This is fucken scala tensor. 
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
-
-        loss_adv = self.adversarial_loss(batch, loss, self.network.lexicon_encoder.embedding.weight, y, label)
-        loss_total = loss + loss_adv
         
-        print("loss diff:",loss_adv-loss)
+        loss_adv = self.adversarial_loss(batch, loss, y, label)
+        
+        loss_total = loss + loss_adv
+        print("loss diff:",loss_adv - loss)
         
         if batch['with_label'] and self.opt.get('extra_loss_on', False):
             loss_total = loss_total + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
 
         self.train_loss.update(loss_total.data[0], len(start))
-        self.optimizer.zero_grad()
+        self.optimizer.zero_grad() # You have to do this to remove gradients of embedding,
         
-        # have all gradients computed automatically. 
-        self.optimizer.zero_grad()
-        loss_total.backward(retain_graph=False)
-        
+
+        loss_total.backward(retain_graph=False)        
         torch.nn.utils.clip_grad_norm(self.network.parameters(),
                                       self.opt['grad_clipping'])
         self.optimizer.step()
