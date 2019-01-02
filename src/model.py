@@ -86,16 +86,29 @@ class DocReaderModel(object):
         """
         self.optimizer.zero_grad() # You want to remove grads acculated from previous batch.
         loss.backward(retain_graph=True) # backprop. Every derivative of realted variables of loss is caluclated.
-        print(loss)
+        #print(loss)
 
         embedding = self.network.lexicon_encoder.embedding
-        grad = embedding.weight.grad.data # d(loss)/d((embedding) # You need to call .weight. You can't call embeddign.grad
+        #embedding.requires_grads=True        
+        grad = embedding.weight.grad.data # d(loss)/d((embedding) # You need to call .weight. You can't call embeddign.grad. #Shape: [N, 300] =  [N,d]
         grad.detach_() # This stops optimizer to optimize embdding. 
-
-        #print("grad:", grad, grad.size())
-        perturb = F.normalize(grad, p=2, dim =1) * 0.5
-        #print("perturb:",perturb)
         
+
+        """
+        #Let's sanity check if it's only contains 32 rows.
+        #print((grad!=0).sum(dim=0)) #[1,300] tensor that # of non zero elems in the N
+
+        #Let's check the token and grad matching.
+        print(np.unique(torch.nonzero((grad!=0))[:,0]))
+        a = batch['doc_tok'].cpu().numpy().flatten().tolist()
+        b = batch['query_tok'].cpu().numpy().flatten().tolist()
+        c = list(set(a+b))
+        c.sort()
+        print(c)
+        """
+        #TODO: numerically stable L2.
+        perturb = F.normalize(grad, p=2, dim =1) * 5.0 # hyper params will be 0.5 0.6 0.7 1
+        #import pdb; pdb.set_trace()
         adv_embedding = embedding.weight + perturb
         #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
 
@@ -108,6 +121,8 @@ class DocReaderModel(object):
                
         #revert it back to the original embedding
         self.network.lexicon_encoder.eval_embed.weight.data = original_emb 
+        #Switch off. Fix the embedding
+        embedding.training = False
         return F.cross_entropy(adv_start, y[0]) + F.cross_entropy(adv_end, y[1]) + F.binary_cross_entropy(adv_pred, label) * self.opt.get('classifier_gamma', 1) 
 
 
@@ -131,19 +146,16 @@ class DocReaderModel(object):
         
         # This is the loss of the batch. plain vanila. This is fucken scala tensor. 
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
-        
-        loss_adv = self.adversarial_loss(batch, loss, y, label)
-        
-        loss_total = loss + loss_adv
-        print("loss diff:",loss_adv - loss)
-        
         if batch['with_label'] and self.opt.get('extra_loss_on', False):
-            loss_total = loss_total + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
-
+            loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
+        # Now we do adv. loss.
+        loss_adv = self.adversarial_loss(batch, loss, y, label)
+        # And we're gonna jointly optimize the sum. 
+        loss_total = loss + loss_adv
+        print("original loss : ",loss,"    adv loss :    ",loss_adv,"     diff : ",loss_adv-loss)
         self.train_loss.update(loss_total.data[0], len(start))
-        self.optimizer.zero_grad() # You have to do this to remove gradients of embedding,
-        
 
+        self.optimizer.zero_grad() # You have to do this to remove gradients of embedding,
         loss_total.backward(retain_graph=False)        
         torch.nn.utils.clip_grad_norm(self.network.parameters(),
                                       self.opt['grad_clipping'])
