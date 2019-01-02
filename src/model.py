@@ -76,23 +76,21 @@ class DocReaderModel(object):
         self.total_param = sum([p.nelement() for p in parameters]) - wvec_size
 
 
-    def adversarial_loss(self, batch, loss, y, label):
+    def adversarial_loss(self, batch, loss, y, no_answer):
         """
         Input: 
                 - batch: batch that is shared with update method. In this code, batch contains not only embedding but also other things such as POS tag, NER etc.
                 - loss : loss function that we will propagate the shit. 
+                - y : answer span y label
+                - no_answer : the label that tells you whether or not the question has the answer
         Output:
                 - adv_loss scalar tensor.
         """
-        self.optimizer.zero_grad() # You want to remove grads acculated from previous batch.
+        self.optimizer.zero_grad() # Remove accumulated grads from the previous batch.
         loss.backward(retain_graph=True) # backprop. Every derivative of realted variables of loss is caluclated.
-        #print(loss)
 
-        embedding = self.network.lexicon_encoder.embedding
-        #embedding.requires_grads=True        
-        grad = embedding.weight.grad.data # d(loss)/d((embedding) # You need to call .weight. You can't call embeddign.grad. #Shape: [N, 300] =  [N,d]
+        grad = self.network.lexicon_encoder.embedding.weight.grad.data # d(loss)/d((embedding) # You need to call embedding.weight. #shape:[vocab #, word emb dimension]
         grad.detach_() # This stops optimizer to optimize embdding. 
-        
 
         """
         #Let's sanity check if it's only contains 32 rows.
@@ -106,24 +104,21 @@ class DocReaderModel(object):
         c.sort()
         print(c)
         """
+        
         #TODO: numerically stable L2.
         perturb = F.normalize(grad, p=2, dim =1) * 5.0 # hyper params will be 0.5 0.6 0.7 1
         #import pdb; pdb.set_trace()
-        adv_embedding = embedding.weight + perturb
-        #print(embedding.size(), embedding.dtype, perturb.size(), perturb.dtype, adv_embedding.size(), adv_embedding.dtype)
-
+        adv_embedding = self.network.lexicon_encoder.embedding.weight + perturb
+        # cache the original embedding's weight (to revert it back to the original state.)
+        original_emb = self.network.lexicon_encoder.embedding.weight.data
+        self.network.lexicon_encoder.embedding.weight.data = adv_embedding
         # forward propagate. You are not evaluating here .You are training weights now using the perturbed input.
-        original_emb = self.network.lexicon_encoder.eval_embed.weight.data
-        # notice this isot evalulate_embedding
-        self.network.lexicon_encoder.eval_embed.weight.data = adv_embedding
-        
         adv_start, adv_end, adv_pred = self.network(batch)
-               
-        #revert it back to the original embedding
-        self.network.lexicon_encoder.eval_embed.weight.data = original_emb 
-        #Switch off. Fix the embedding
-        embedding.training = False
-        return F.cross_entropy(adv_start, y[0]) + F.cross_entropy(adv_end, y[1]) + F.binary_cross_entropy(adv_pred, label) * self.opt.get('classifier_gamma', 1) 
+        #revert it back to the original embedding. so that it doesn't get bigger for the words that appear a lot i.e. "the"
+        self.network.lexicon_encoder.embedding.weight.data = original_emb 
+        #Switch off the embedding training. 
+        self.network.lexicon_encoder.embedding.training = False
+        return F.cross_entropy(adv_start, y[0]) + F.cross_entropy(adv_end, y[1]) + F.binary_cross_entropy(adv_pred, no_answer) * self.opt.get('classifier_gamma', 1) 
 
 
     def update(self, batch):
@@ -218,13 +213,12 @@ class DocReaderModel(object):
             return (predictions, best_scores)
 
     def setup_eval_embed(self, eval_embed, padding_idx = 0):
-        self.network.lexicon_encoder.eval_embed = nn.Embedding(eval_embed.size(0),
-                                               eval_embed.size(1),
+        self.network.lexicon_encoder.eval_embed = nn.Embedding(eval_embed.size(0), eval_embed.size(1),
                                                padding_idx = padding_idx)
         self.network.lexicon_encoder.eval_embed.weight.data = eval_embed
         for p in self.network.lexicon_encoder.eval_embed.parameters():
             p.requires_grad = False
-        self.eval_embed_transfer = True
+        self.eval_embed_transfer = True  
 
         if self.opt['covec_on']:
             self.network.lexicon_encoder.ContextualEmbed.setup_eval_embed(eval_embed)
