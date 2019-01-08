@@ -79,19 +79,18 @@ class DocReaderModel(object):
     def adversarial_loss(self, batch, loss, y, no_answer):
         """
         Input: 
-                - batch: batch that is shared with update method. In this code, batch contains not only embedding but also other things such as POS tag, NER etc.
-                - loss : loss function that we will propagate the shit. 
-                - y : answer span y label
-                - no_answer : the label that tells you whether or not the question has the answer
+                - batch: batch that is shared with update method. 
+                - loss : F(x, θ)
+                - y    : y label (answer span)
         Output:
-                - adv_loss scalar tensor.
+                - adversarial loss. F(x+perturb, θ). Scalar tensor. 
         """
         self.optimizer.zero_grad() # Remove accumulated grads from the previous batch.
-        loss.backward(retain_graph=True) # backprop. Every derivative of realted variables of loss is caluclated.
-
-        grad = self.network.lexicon_encoder.embedding.weight.grad.data # d(loss)/d((embedding) # You need to call embedding.weight. #shape:[vocab #, word emb dimension]
-        grad.detach_() # This stops optimizer to optimize embdding. 
-
+        loss.backward(retain_graph=True) # backprop. I retained the graph for total_loss.
+        
+        # grad = d(loss)/d((x). Shape:[# of vocab, word emb dimension]
+        grad = self.network.lexicon_encoder.embedding.weight.grad.data 
+        grad.detach_() #**QUESTION: should it be loss.detach_()?**
         """
         #Let's sanity check if it's only contains 32 rows.
         #print((grad!=0).sum(dim=0)) #[1,300] tensor that # of non zero elems in the N
@@ -104,19 +103,19 @@ class DocReaderModel(object):
         c.sort()
         print(c)
         """
-        
         #TODO: numerically stable L2.
-        perturb = F.normalize(grad, p=2, dim =1) * 5.0 # hyper params will be 0.5 0.6 0.7 1
+        perturb = F.normalize(grad, p=2, dim =1) * 5.0 # 5 is the norm of perturbation. Hyperparam. 
         #import pdb; pdb.set_trace()
         adv_embedding = self.network.lexicon_encoder.embedding.weight + perturb
-        # cache the original embedding's weight (to revert it back to the original state.)
+        
+        # cache the original embedding's weight (to revert it back later)
         original_emb = self.network.lexicon_encoder.embedding.weight.data
-        self.network.lexicon_encoder.embedding.weight.data = adv_embedding
-        # forward propagate. You are not evaluating here .You are training weights now using the perturbed input.
+        self.network.lexicon_encoder.embedding.weight.data = adv_embedding # This is from cache. 
+        # forward propagate for F(x+perturb, θ)
         adv_start, adv_end, adv_pred = self.network(batch)
-        #revert it back to the original embedding. so that it doesn't get bigger for the words that appear a lot i.e. "the"
+        # revert x back to the original state before the perturbation.
         self.network.lexicon_encoder.embedding.weight.data = original_emb 
-        #Switch off the embedding training. 
+        # switch off the embedding training. 
         self.network.lexicon_encoder.embedding.training = False
         return F.cross_entropy(adv_start, y[0]) + F.cross_entropy(adv_end, y[1]) + F.binary_cross_entropy(adv_pred, no_answer) * self.opt.get('classifier_gamma', 1) 
 
@@ -136,21 +135,21 @@ class DocReaderModel(object):
             if self.opt.get('extra_loss_on', False):
                 label = Variable(batch['label'], requires_grad=False)
 
-        # span prediction: start- a start token of the answer span. end - an end token of the answer span. pred - binary prediction whether or not the question is answerable.
-        start, end, pred = self.network(batch) # forward propagate
+        # forward propagate. These are answer span (NLP Question Answering span). predicted labels.
+        start, end, pred = self.network(batch) 
         
-        # This is the loss of the batch. plain vanila. This is fucken scala tensor. 
+        # F(x, θ).  A scala tensor. 
         loss = F.cross_entropy(start, y[0]) + F.cross_entropy(end, y[1])
         if batch['with_label'] and self.opt.get('extra_loss_on', False):
             loss = loss + F.binary_cross_entropy(pred, label) * self.opt.get('classifier_gamma', 1)
-        # Now we do adv. loss.
+        # F(x+perturb, θ)
         loss_adv = self.adversarial_loss(batch, loss, y, label)
-        # And we're gonna jointly optimize the sum. 
         loss_total = loss + loss_adv
         print("original loss : ",loss,"    adv loss :    ",loss_adv,"     diff : ",loss_adv-loss)
         self.train_loss.update(loss_total.data[0], len(start))
-
-        self.optimizer.zero_grad() # You have to do this to remove gradients of embedding,
+        self.optimizer.zero_grad() 
+        
+        # jointly optimize F(x, θ) + F(x+perturb, θ)
         loss_total.backward(retain_graph=False)        
         torch.nn.utils.clip_grad_norm(self.network.parameters(),
                                       self.opt['grad_clipping'])
