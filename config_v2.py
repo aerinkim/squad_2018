@@ -178,7 +178,7 @@ def train_config(parser):
     parser.add_argument('--tune_partial', type=int, default=89571, help='finetune top-x embeddings (including <PAD>, <UNK>). This will remove the gradient to all embeddings but the x most frequent words.')    
 
     parser.add_argument('--model_dir', default='checkpoint_v2')
-    parser.add_argument('--seed', type=int, default=1023,
+    parser.add_argument('--seed', type=int, default=2020,
                         help='random seed for data shuffling, embedding init, etc.')
     base_dir=os.getenv('PT_OUTPUT_DIR', 'model_data')
     parser.add_argument('--gpu', default=0, type=int, help='Use for philly tools. I don\'t know wtf it is.')

@@ -89,8 +89,8 @@ class DocReaderModel(object):
         self.optimizer.zero_grad() # Remove accumulated grads from the previous batch.
         loss.backward(retain_graph=True) # backprop. Every derivative of realted variables of loss is caluclated.
 
-        grad = self.network.lexicon_encoder.embedding.weight.grad.data # d(loss)/d((embedding) # You need to call embedding.weight. #shape:[vocab #, word emb dimension]
-        grad.detach_() # This stops optimizer to optimize embdding. 
+        grad = self.network.lexicon_encoder.embedding.weight.grad.data.clone() # d(loss)/d((embedding) # You need to call embedding.weight. #shape:[vocab #, word emb dimension]
+        #grad.detach_() # This stops optimizer to optimize embdding. 
 
         """
         #Let's sanity check if it's only contains 32 rows.
@@ -106,7 +106,7 @@ class DocReaderModel(object):
         """
         
         #TODO: numerically stable L2.
-        perturb = F.normalize(grad, p=2, dim =1) * 5.0 # hyper params will be 0.5 0.6 0.7 1
+        perturb = F.normalize(grad, p=2, dim =1) * 100.0 # hyper params will be 0.5 0.6 0.7 1
         #import pdb; pdb.set_trace()
         adv_embedding = self.network.lexicon_encoder.embedding.weight + perturb
         # cache the original embedding's weight (to revert it back to the original state.)
