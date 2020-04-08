@@ -1,4 +1,4 @@
-This is a packge of SAN (Stochastic Answer Networks for Machine Reading Comprehension) https://arxiv.org/abs/1712.03556. 
+This is a packge of SAN (Stochastic Answer Networks for Machine Reading Comprehension) https://arxiv.org/abs/1809.09194. 
 # pls cite our paper if you use this package
  
 ######### SETUP ENV ###########
